@@ -1,0 +1,9 @@
+[project]
+name = "vlms-whatsapp-mockup"
+version = "0.1.0"
+description = "Mock Meta Cloud API for testing VLMS WhatsApp integration"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "httpx>=0.28.0",
+]

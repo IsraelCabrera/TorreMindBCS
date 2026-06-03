@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Mock — Torre Mind</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #111b21; color: #e9edef; height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  .header { background: #202c33; padding: 12px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #2a3942; flex-shrink: 0; }
+  .header .avatar { width: 40px; height: 40px; border-radius: 50%; background: #00a884; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; color: #fff; }
+  .header h1 { font-size: 16px; font-weight: 600; }
+  .header .subtitle { font-size: 12px; color: #8696a0; }
+
+  /* Tabs */
+  .tabs { display: flex; background: #182229; border-bottom: 1px solid #2a3942; flex-shrink: 0; }
+  .tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 500; cursor: pointer; color: #8696a0; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; }
+  .tab:hover { color: #e9edef; background: #1f2c34; }
+  .tab.active { color: #00a884; border-bottom-color: #00a884; background: #1f2c34; }
+  .tab .badge { display: inline-block; background: #00a884; color: #111; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-left: 4px; vertical-align: top; }
+
+  /* Status bar */
+  .status-bar { background: #182229; padding: 8px 20px; display: flex; gap: 16px; font-size: 12px; color: #8696a0; border-bottom: 1px solid #2a3942; flex-shrink: 0; flex-wrap: wrap; align-items: center; }
+  .status-bar label { color: #8696a0; }
+  .status-bar input { background: #2a3942; border: 1px solid #3b4a54; color: #e9edef; border-radius: 4px; padding: 2px 6px; font-size: 12px; }
+  .status-bar input:focus { outline: none; border-color: #00a884; }
+  .status-bar input.small { width: 140px; }
+  .status-bar input.med { width: 280px; }
+  .btn-clear { background: #3b4a54; border: none; color: #e9edef; padding: 3px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .btn-clear:hover { background: #4f5f6b; }
+  .status-bar .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+  .dot.green { background: #00a884; }
+  .dot.red { background: #ef5350; }
+
+  /* Chat panels */
+  .chat-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .chat-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .chat-panel.active { display: flex; }
+  .chat-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 6px; }
+  .chat-area:empty::after { content: attr(data-empty); color: #667781; font-size: 14px; text-align: center; padding: 40px; }
+
+  /* Messages */
+  .msg { max-width: 85%; display: flex; flex-direction: column; }
+  .msg.in { align-self: flex-start; }
+  .msg.out { align-self: flex-end; }
+  .msg .bubble { border-radius: 8px; padding: 8px 12px; position: relative; }
+  .msg.in .bubble { background: #202c33; border-bottom-left-radius: 0; }
+  .msg.out .bubble { background: #005c4b; border-bottom-right-radius: 0; }
+  .msg .template-tag { font-size: 10px; color: #00a884; font-weight: 600; text-transform: uppercase; margin-bottom: 2px; letter-spacing: .3px; }
+  .msg .template-tag .type { color: #8696a0; font-weight: 400; }
+  .msg .body-text { font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  .msg .time { font-size: 11px; color: #667781; text-align: right; margin-top: 4px; }
+  .msg .sender { font-size: 11px; color: #00a884; font-weight: 500; margin-bottom: 1px; }
+
+  /* Buttons inside message */
+  .msg .buttons { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .msg .btn-reply { border: none; padding: 7px 14px; border-radius: 18px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background .15s; }
+  .msg .btn-reply.approve { background: #00a884; color: #fff; }
+  .msg .btn-reply.approve:hover { background: #06cf9c; }
+  .msg .btn-reply.deny { background: #ef5350; color: #fff; }
+  .msg .btn-reply.deny:hover { background: #e57373; }
+
+  /* Visitor input area */
+  .input-area { display: flex; gap: 8px; padding: 10px 16px; background: #202c33; border-top: 1px solid #2a3942; }
+  .input-area textarea { flex: 1; background: #2a3942; border: none; color: #e9edef; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-family: inherit; resize: none; min-height: 20px; max-height: 80px; }
+  .input-area textarea:focus { outline: none; border: 1px solid #00a884; }
+  .input-area textarea::placeholder { color: #667781; }
+  .input-area .btn-send { background: #00a884; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 18px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .input-area .btn-send:hover { background: #06cf9c; }
+
+  /* Debug panel */
+  .debug-panel { background: #0b141a; border-top: 1px solid #2a3942; flex-shrink: 0; max-height: 180px; overflow-y: auto; }
+  .debug-panel summary { padding: 6px 20px; cursor: pointer; font-size: 12px; color: #8696a0; user-select: none; }
+  .debug-panel summary:hover { color: #e9edef; }
+  .debug-panel pre { padding: 6px 20px 10px; font-size: 11px; line-height: 1.4; color: #8696a0; white-space: pre-wrap; word-break: break-word; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #374045; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="avatar">TM</div>
+  <div>
+    <h1>Torre Mind</h1>
+    <div class="subtitle">WhatsApp Mock — Simulador Meta API</div>
+  </div>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="tenant" onclick="switchTab('tenant')">
+    💼 Inquilino <span class="badge" id="badgeTenant">0</span>
+  </div>
+  <div class="tab" data-tab="visitor" onclick="switchTab('visitor')">
+    🧑 Visitante <span class="badge" id="badgeVisitor">0</span>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span><span class="dot green" id="connDot"></span><span id="connText">Conectado</span></span>
+  <label>Webhook VLMS:</label>
+  <input class="med" id="webhookUrl" value="http://localhost:8000/webhooks/whatsapp" spellcheck="false">
+  <label>Tel. visitante:</label>
+  <input class="small" id="visitorPhone" value="+526650000001" spellcheck="false">
+  <button class="btn-clear" onclick="clearActiveChat()">🗑 Borrar chat</button>
+</div>
+
+<div class="chat-wrapper">
+
+  <!-- TENANT PANEL -->
+  <div class="chat-panel active" id="panelTenant" data-empty="Esperando notificaciones de Torre Mind...">
+    <div class="chat-area" id="chatTenant"></div>
+  </div>
+
+  <!-- VISITOR PANEL -->
+  <div class="chat-panel" id="panelVisitor" data-empty="El visitante aún no ha enviado mensajes.">
+    <div class="chat-area" id="chatVisitor"></div>
+    <div class="input-area">
+      <textarea id="visitorInput" rows="1" placeholder="Escribe un mensaje como visitante..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendVisitorMsg()}"></textarea>
+      <button class="btn-send" onclick="sendVisitorMsg()">▶</button>
+    </div>
+  </div>
+
+</div>
+
+<details class="debug-panel">
+  <summary>📦 JSON sin procesar (<span id="debugCount">0</span> mensajes)</summary>
+  <pre id="debugJson">(ninguno)</pre>
+</details>
+
+<script>
+let currentTab = 'tenant';
+let counts = { tenant: 0, visitor: 0 };
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.chat-panel').forEach(p => p.classList.toggle('active', p.id === 'panel' + tab.charAt(0).toUpperCase() + tab.slice(1)));
+  if (tab === 'visitor') {
+    setTimeout(() => document.getElementById('visitorInput').focus(), 100);
+  }
+}
+
+async function fetchMessages(chatType) {
+  try {
+    const resp = await fetch(`/api/messages?chat_type=${chatType}`);
+    const msgs = await resp.json();
+    renderMessages(chatType, msgs);
+    document.getElementById('connDot').className = 'dot green';
+    document.getElementById('connText').textContent = 'Conectado';
+  } catch {
+    document.getElementById('connDot').className = 'dot red';
+    document.getElementById('connText').textContent = 'Sin conexión';
+  }
+}
+
+function renderMessages(chatType, msgs) {
+  const area = document.getElementById('chat' + chatType.charAt(0).toUpperCase() + chatType.slice(1));
+  if (msgs.length === counts[chatType]) return;
+
+  // Only render new messages
+  const prevCount = counts[chatType];
+  counts[chatType] = msgs.length;
+  document.getElementById('badge' + chatType.charAt(0).toUpperCase() + chatType.slice(1)).textContent = msgs.length;
+
+  if (msgs.length === 0) {
+    area.innerHTML = '';
+    return;
+  }
+
+  // Render only new ones
+  for (let i = prevCount; i < msgs.length; i++) {
+    const msg = msgs[i];
+    const div = document.createElement('div');
+    div.className = `msg ${msg.direction === 'out' ? 'out' : 'in'}`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    if (msg.template_name) {
+      const tag = document.createElement('div');
+      tag.className = 'template-tag';
+      tag.innerHTML = `${escapeHtml(msg.template_name)} <span class="type">→ ${escapeHtml(msg.to)}</span>`;
+      bubble.appendChild(tag);
+    } else if (msg.direction === 'out') {
+      const sender = document.createElement('div');
+      sender.className = 'sender';
+      sender.textContent = 'Tú → Torre Mind';
+      bubble.appendChild(sender);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'body-text';
+    body.textContent = msg.body || (msg.direction === 'out' ? '(mensaje enviado)' : '(sin contenido)');
+    bubble.appendChild(body);
+
+    const time = document.createElement('div');
+    time.className = 'time';
+    time.textContent = new Date(msg.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    bubble.appendChild(time);
+
+    if (msg.buttons && msg.buttons.length > 0) {
+      const btnWrap = document.createElement('div');
+      btnWrap.className = 'buttons';
+      for (const btn of msg.buttons) {
+        const el = document.createElement('button');
+        el.className = 'btn-reply ' + (btn.payload.startsWith('deny') ? 'deny' : 'approve');
+        el.textContent = btn.label || btn.payload;
+        el.onclick = () => sendTenantReply(msg.to, btn.payload, el);
+        btnWrap.appendChild(el);
+      }
+      bubble.appendChild(btnWrap);
+    }
+
+    div.appendChild(bubble);
+    area.appendChild(div);
+  }
+
+  area.scrollTop = area.scrollHeight;
+}
+
+async function sendTenantReply(from, payload, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  btn.style.opacity = '0.6';
+
+  try {
+    const resp = await fetch('/api/send-tenant-reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, payload, webhook_url: document.getElementById('webhookUrl').value.trim() }),
+    });
+    const data = await resp.json();
+    btn.textContent = data.vlms_status === 200 ? '✓ Enviado' : `✗ Error ${data.vlms_status}`;
+    btn.style.background = data.vlms_status === 200 ? '#2e7d32' : '#c62828';
+    btn.style.opacity = '1';
+  } catch {
+    btn.textContent = '✗ Error';
+    btn.style.background = '#c62828';
+    btn.style.opacity = '1';
+  }
+}
+
+async function sendVisitorMsg() {
+  const input = document.getElementById('visitorInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const from = document.getElementById('visitorPhone').value.trim() || '+526650000001';
+  input.value = '';
+  input.style.height = 'auto';
+
+  try {
+    await fetch('/api/send-visitor-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, text, webhook_url: document.getElementById('webhookUrl').value.trim() }),
+    });
+  } catch (e) {
+    console.error('Error enviando mensaje:', e);
+  }
+}
+
+function clearActiveChat() {
+  const chatType = currentTab;
+  fetch(`/api/messages?chat_type=${chatType}`, { method: 'DELETE' }).then(() => {
+    counts[chatType] = 0;
+    const area = document.getElementById('chat' + chatType.charAt(0).toUpperCase() + chatType.slice(1));
+    area.innerHTML = '';
+    document.getElementById('badge' + chatType.charAt(0).toUpperCase() + chatType.slice(1)).textContent = '0';
+  });
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// Update debug panel
+async function updateDebug() {
+  try {
+    const resp = await fetch('/api/messages');
+    const all = await resp.json();
+    document.getElementById('debugCount').textContent = all.length;
+    document.getElementById('debugJson').textContent = all.length ? JSON.stringify(all, null, 2) : '(ninguno)';
+  } catch {}
+}
+
+// Auto-resize textarea
+document.getElementById('visitorInput')?.addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+});
+
+// Polling
+setInterval(() => {
+  fetchMessages('tenant');
+  fetchMessages('visitor');
+  updateDebug();
+}, 1200);
+
+// Initial fetch
+fetchMessages('tenant');
+fetchMessages('visitor');
+updateDebug();
+</script>
+</body>
+</html>

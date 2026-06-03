@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1f3a5f;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #1fa6a0;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #17a2b8;
+  --color-accent-foreground: #ffffff;
+  --color-background: #f4f6f8;
+  --color-foreground: #2c2c2c;
+  --color-card: #ffffff;
+  --color-card-foreground: #2c2c2c;
+  --color-muted: #f4f6f8;
+  --color-muted-foreground: #6b7280;
+  --color-border: #e5e7eb;
+  --color-input: #ffffff;
+  --color-ring: #1f3a5f;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --radius: 0.625rem;
+}
+
+:root {
+  --background: #f4f6f8;
+  --foreground: #2c2c2c;
+  --card: #ffffff;
+  --card-foreground: #2c2c2c;
+  --primary: #1f3a5f;
+  --primary-foreground: #ffffff;
+  --secondary: #1fa6a0;
+  --secondary-foreground: #ffffff;
+  --accent: #17a2b8;
+  --accent-foreground: #ffffff;
+  --muted: #f4f6f8;
+  --muted-foreground: #6b7280;
+  --border: #e5e7eb;
+  --input: #ffffff;
+  --ring: #1f3a5f;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --radius: 0.625rem;
+}
+
+body {
+  margin: 0;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

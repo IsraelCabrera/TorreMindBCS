@@ -1,0 +1,91 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vlms
+      POSTGRES_USER: vlms
+      POSTGRES_PASSWORD: vlms_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vlms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vlms:vlms_dev@db:5432/vlms
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+      WHATSAPP_PHONE_NUMBER_ID: ""
+      WHATSAPP_ACCESS_TOKEN: ""
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: "vlms-verify-token"
+      CORS_ORIGINS: '["http://localhost:5173", "http://frontend:5173"]'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: arq app.worker_settings.WorkerSettings
+    environment:
+      DATABASE_URL: postgresql+asyncpg://vlms:vlms_dev@db:5432/vlms
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-change-in-production
+      WHATSAPP_PHONE_NUMBER_ID: ""
+      WHATSAPP_ACCESS_TOKEN: ""
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: "vlms-verify-token"
+      CORS_ORIGINS: '["http://localhost:5173", "http://frontend:5173"]'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      target: build
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_PROXY_TARGET: http://backend:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/public:/app/public
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/package.json:/app/package.json
+    command: npx vite --host 0.0.0.0
+
+  mockup:
+    build: ./mockup
+    ports:
+      - "9090:9090"
+    environment:
+      WHATSAPP_WEBHOOK_URL: http://backend:8000/webhooks/whatsapp
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
