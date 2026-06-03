@@ -1,8 +1,8 @@
 """initial_models
 
-Revision ID: 067601cd981b
-Revises: 80c02d6628be
-Create Date: 2026-06-02 12:36:32.123079
+Revision ID: 186ddffdd059
+Revises: 
+Create Date: 2026-06-03 10:16:48.912470
 
 """
 from typing import Sequence, Union
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision: str = '067601cd981b'
+revision: str = '186ddffdd059'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

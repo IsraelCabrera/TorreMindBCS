@@ -33,8 +33,12 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
   const recipientOptions = useMemo(() => {
     const options: Array<{ label: string; value: string }> = []
     for (const t of tenants) {
-      for (const c of t.contacts) {
-        options.push({ label: `${c.name} (${t.name})`, value: c.name })
+      if (t.contacts.length > 0) {
+        for (const c of t.contacts) {
+          options.push({ label: `${c.name} (${t.name})`, value: c.name })
+        }
+      } else {
+        options.push({ label: t.name, value: t.name })
       }
     }
     return options

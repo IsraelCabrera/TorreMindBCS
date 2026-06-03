@@ -48,8 +48,12 @@ export function CheckInPanel({ visitor, defaultType, onClose, onSuccess }: Check
   const hostOptions = useMemo(() => {
     const options: Array<{ label: string; value: string; tenantId: string }> = []
     for (const t of tenants) {
-      for (const c of t.contacts) {
-        options.push({ label: `${c.name} (${t.name})`, value: c.name, tenantId: t.id })
+      if (t.contacts.length > 0) {
+        for (const c of t.contacts) {
+          options.push({ label: `${c.name} (${t.name})`, value: c.name, tenantId: t.id })
+        }
+      } else {
+        options.push({ label: t.name, value: "", tenantId: t.id })
       }
     }
     return options
