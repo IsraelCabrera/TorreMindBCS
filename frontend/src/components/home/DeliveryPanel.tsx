@@ -7,7 +7,7 @@ import { X } from "lucide-react"
 interface Tenant {
   id: string
   name: string
-  contacts: Array<{ id: string; name: string }>
+  contacts: Array<{ id: string; name: string; phone: string | null }>
 }
 
 interface DeliveryPanelProps {
@@ -21,9 +21,12 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
   const [courier, setCourier] = useState("")
   const [recipientQuery, setRecipientQuery] = useState("")
   const [recipientName, setRecipientName] = useState("")
+  const [recipientPhone, setRecipientPhone] = useState("")
+  const [guideNumber, setGuideNumber] = useState("")
   const [description, setDescription] = useState("")
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false)
 
   useEffect(() => {
@@ -31,14 +34,14 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
   }, [])
 
   const recipientOptions = useMemo(() => {
-    const options: Array<{ label: string; value: string }> = []
+    const options: Array<{ label: string; value: string; phone: string | null }> = []
     for (const t of tenants) {
       if (t.contacts.length > 0) {
         for (const c of t.contacts) {
-          options.push({ label: `${c.name} (${t.name})`, value: c.name })
+          options.push({ label: `${c.name} (${t.name})`, value: c.name, phone: c.phone })
         }
       } else {
-        options.push({ label: t.name, value: t.name })
+        options.push({ label: t.name, value: t.name, phone: null })
       }
     }
     return options
@@ -50,8 +53,9 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
     return recipientOptions.filter((r) => r.label.toLowerCase().includes(q))
   }, [recipientQuery, recipientOptions])
 
-  const selectRecipient = (name: string) => {
+  const selectRecipient = (name: string, phone: string | null) => {
     setRecipientName(name)
+    setRecipientPhone(phone || "")
     setRecipientQuery(name)
     setShowRecipientDropdown(false)
   }
@@ -59,16 +63,19 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
   const handleSubmit = async () => {
     if (!courier || !recipientName) return
     setLoading(true)
+    setError("")
     try {
       const delivery = await api.post("/deliveries", {
         courier,
+        guide_number: guideNumber || null,
         recipient_name: recipientName,
+        recipient_phone: recipientPhone || null,
         description: description || null,
       })
       await api.post(`/deliveries/${delivery.id}/notify`)
       onSuccess()
     } catch (err) {
-      console.error(err)
+      setError(err instanceof Error ? err.message : "Error al notificar")
     } finally {
       setLoading(false)
     }
@@ -99,6 +106,16 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-primary mb-0.5">No. Guía</label>
+              <input
+                type="text"
+                value={guideNumber}
+                onChange={(e) => setGuideNumber(e.target.value)}
+                placeholder="Opcional"
+                className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring"
+              />
+            </div>
             <div className="relative">
               <label className="block text-xs font-medium text-primary mb-0.5">Destinatario *</label>
               <input
@@ -114,7 +131,7 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
                   {filteredRecipients.map((r, i) => (
                     <button
                       key={i}
-                      onClick={() => selectRecipient(r.value)}
+                      onClick={() => selectRecipient(r.value, r.phone)}
                       className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
                     >
                       {r.label}
@@ -135,6 +152,9 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
             </div>
           </div>
 
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+          )}
           <Button onClick={handleSubmit} disabled={loading || !courier || !recipientName} className="w-full">
             {loading ? "Notificando..." : "Notificar"}
           </Button>

@@ -29,7 +29,13 @@ def build_host_acknowledgment(visit_id: str, visitor_name: str, visitor_company:
     }
 
 
-def build_package_notification(courier: str, recipient: str):
+def build_package_notification(courier: str, recipient: str, guide_number: str | None = None):
+    params = [
+        {"type": "text", "text": courier},
+        {"type": "text", "text": recipient},
+    ]
+    if guide_number:
+        params.append({"type": "text", "text": guide_number})
     return {
         "type": "template",
         "template": {
@@ -38,10 +44,29 @@ def build_package_notification(courier: str, recipient: str):
             "components": [
                 {
                     "type": "body",
-                    "parameters": [
-                        {"type": "text", "text": courier},
-                        {"type": "text", "text": recipient},
-                    ],
+                    "parameters": params,
+                }
+            ],
+        },
+    }
+
+
+def build_package_collected(courier: str, recipient: str, guide_number: str | None = None):
+    params = [
+        {"type": "text", "text": courier},
+        {"type": "text", "text": recipient},
+    ]
+    if guide_number:
+        params.append({"type": "text", "text": guide_number})
+    return {
+        "type": "template",
+        "template": {
+            "name": "package_collected",
+            "language": {"code": "es"},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": params,
                 }
             ],
         },

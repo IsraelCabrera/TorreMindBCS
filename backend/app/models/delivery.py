@@ -13,6 +13,7 @@ class DeliveryRecord(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     courier: Mapped[str] = mapped_column(String(255))
+    guide_number: Mapped[str | None] = mapped_column(String(255))
     recipient_name: Mapped[str] = mapped_column(String(255))
     recipient_phone: Mapped[str | None] = mapped_column(String(50))
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), default=None)

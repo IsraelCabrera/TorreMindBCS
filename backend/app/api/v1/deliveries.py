@@ -8,13 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session, staff_or_admin
 from app.models.delivery import DeliveryRecord
-from app.whatsapp.handlers import notify_delivery_recipient
+from app.models.tenant import Tenant
+from app.models.tenant_contact import TenantContact
+from app.whatsapp.handlers import notify_delivery_recipient, notify_delivery_collected
 
 router = APIRouter()
 
 
 class DeliveryCreate(BaseModel):
     courier: str
+    guide_number: str | None = None
     recipient_name: str
     recipient_phone: str | None = None
     tenant_id: str | None = None
@@ -24,6 +27,7 @@ class DeliveryCreate(BaseModel):
 class DeliveryResponse(BaseModel):
     id: str
     courier: str
+    guide_number: str | None
     recipient_name: str
     recipient_phone: str | None
     description: str | None
@@ -44,7 +48,8 @@ async def list_active_deliveries(
     deliveries = result.scalars().all()
     return [
         DeliveryResponse(
-            id=str(d.id), courier=d.courier, recipient_name=d.recipient_name,
+            id=str(d.id), courier=d.courier, guide_number=d.guide_number,
+            recipient_name=d.recipient_name,
             recipient_phone=d.recipient_phone, description=d.description,
             status=d.status, check_in_at=d.check_in_at.isoformat(),
             collected_at=d.collected_at.isoformat() if d.collected_at else None,
@@ -61,7 +66,8 @@ async def create_delivery(
     user: dict = Depends(staff_or_admin),
 ):
     delivery = DeliveryRecord(
-        courier=body.courier, recipient_name=body.recipient_name,
+        courier=body.courier, guide_number=body.guide_number,
+        recipient_name=body.recipient_name,
         recipient_phone=body.recipient_phone, description=body.description,
         check_in_at=datetime.now(timezone.utc), status="pending",
     )
@@ -71,7 +77,7 @@ async def create_delivery(
     await db.commit()
     await db.refresh(delivery)
     return DeliveryResponse(
-        id=str(delivery.id), courier=delivery.courier,
+        id=str(delivery.id), courier=delivery.courier, guide_number=delivery.guide_number,
         recipient_name=delivery.recipient_name,
         recipient_phone=delivery.recipient_phone,
         description=delivery.description, status=delivery.status,
@@ -90,9 +96,23 @@ async def notify_delivery(
     delivery = result.scalar_one_or_none()
     if not delivery:
         raise HTTPException(status_code=404)
-    if not delivery.recipient_phone:
+
+    phone = delivery.recipient_phone
+    if not phone:
+        # Fallback: look up from tenant contacts by recipient name
+        contact_result = await db.execute(
+            select(TenantContact).where(TenantContact.name == delivery.recipient_name,
+                                         TenantContact.phone.isnot(None)).limit(1)
+        )
+        contact = contact_result.scalar_one_or_none()
+        if contact and contact.phone:
+            phone = contact.phone
+            delivery.recipient_phone = phone
+
+    if not phone:
         raise HTTPException(status_code=400, detail="Recipient has no phone number")
-    await notify_delivery_recipient(db, delivery.courier, delivery.recipient_phone, delivery.id)
+
+    await notify_delivery_recipient(db, delivery.courier, delivery.recipient_name, delivery.guide_number, phone, delivery.id)
     delivery.notification_sent = True
     await db.commit()
     return {"status": "notification_sent"}
@@ -110,5 +130,19 @@ async def mark_collected(
         raise HTTPException(status_code=404)
     delivery.status = "collected"
     delivery.collected_at = datetime.now(timezone.utc)
+
+    phone = delivery.recipient_phone
+    if not phone:
+        contact_result = await db.execute(
+            select(TenantContact).where(TenantContact.name == delivery.recipient_name,
+                                         TenantContact.phone.isnot(None)).limit(1)
+        )
+        contact = contact_result.scalar_one_or_none()
+        if contact and contact.phone:
+            phone = contact.phone
+    if phone:
+        await notify_delivery_collected(db, delivery.courier, delivery.recipient_name,
+                                         delivery.guide_number, phone, delivery.id)
+
     await db.commit()
     return {"status": "collected"}
