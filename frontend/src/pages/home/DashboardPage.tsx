@@ -69,21 +69,23 @@ export function DashboardPage() {
 
         <QuickActions onAction={handleAction} />
 
-        {panel === "checkin" && (
-          <CheckInPanel
-            visitor={selectedVisitor}
-            defaultType={panelVisitorType}
-            onClose={closePanel}
-            onSuccess={handleSuccess}
-          />
-        )}
+        <div aria-live="polite" aria-atomic="true">
+          {panel === "checkin" && (
+            <CheckInPanel
+              visitor={selectedVisitor}
+              defaultType={panelVisitorType}
+              onClose={closePanel}
+              onSuccess={handleSuccess}
+            />
+          )}
 
-        {panel === "delivery" && (
-          <DeliveryPanel
-            onClose={closePanel}
-            onSuccess={handleSuccess}
-          />
-        )}
+          {panel === "delivery" && (
+            <DeliveryPanel
+              onClose={closePanel}
+              onSuccess={handleSuccess}
+            />
+          )}
+        </div>
 
         <StatusBoard key={refreshKey} />
       </div>

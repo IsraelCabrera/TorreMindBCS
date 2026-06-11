@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { Layout } from "./components/layout/Layout"
+import { SelfRegistrationLayout } from "./components/layout/SelfRegistrationLayout"
 import { DashboardPage } from "./pages/home/DashboardPage"
 import { ExitPage } from "./pages/exit/ExitPage"
 import { HistoryPage } from "./pages/history/HistoryPage"
@@ -7,6 +8,8 @@ import { DeliveriesPage } from "./pages/deliveries/DeliveriesPage"
 import { TenantsPage } from "./pages/tenants/TenantsPage"
 import { ReportsPage } from "./pages/reports/ReportsPage"
 import { AdminPage } from "./pages/admin/AdminPage"
+import { SelfRegistrationPage } from "./pages/self-register/SelfRegistrationPage"
+import { WhatsAppTestPage } from "./pages/WhatsAppTest/WhatsAppTestPage"
 
 export default function App() {
   return (
@@ -20,6 +23,10 @@ export default function App() {
           <Route path="/tenants" element={<TenantsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          {import.meta.env.DEV && <Route path="/dev/whatsapp-test" element={<WhatsAppTestPage />} />}
+        </Route>
+        <Route element={<SelfRegistrationLayout />}>
+          <Route path="/register" element={<SelfRegistrationPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

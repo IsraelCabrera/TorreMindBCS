@@ -58,45 +58,47 @@ export function StatusBoard() {
         </span>
       </div>
 
-      {visits.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-8 text-muted-foreground text-sm">
-            No hay visitantes activos en este momento.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-2">
-          {visits.map((v) => {
-            const cfg = statusConfig[v.status] || { label: v.status, dot: "bg-gray-400", bg: "border-l-gray-400" }
-            return (
-              <Card key={v.id} className={`border-l-4 ${cfg.bg}`}>
-                <CardContent className="flex items-center justify-between p-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                      <h4 className="font-semibold text-foreground truncate">{v.visitor_name}</h4>
-                      <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        {cfg.label}
-                      </span>
+      <div aria-live="polite" aria-atomic="true">
+        {visits.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8 text-muted-foreground text-sm">
+              No hay visitantes activos en este momento.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {visits.map((v) => {
+              const cfg = statusConfig[v.status] || { label: v.status, dot: "bg-gray-400", bg: "border-l-gray-400" }
+              return (
+                <Card key={v.id} className={`border-l-4 ${cfg.bg}`}>
+                  <CardContent className="flex items-center justify-between p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${cfg.dot}`} aria-hidden="true" />
+                        <h4 className="font-semibold text-foreground truncate">{v.visitor_name}</h4>
+                        <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-0.5">
+                        {v.tenant_name && <span>{v.tenant_name}</span>}
+                        {v.host_name && <span> → {v.host_name}</span>}
+                        {!v.tenant_name && !v.host_name && v.visitor_company && <span>{v.visitor_company}</span>}
+                        <span className="ml-2 text-xs">
+                          {new Date(v.check_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate mt-0.5">
-                      {v.tenant_name && <span>{v.tenant_name}</span>}
-                      {v.host_name && <span> → {v.host_name}</span>}
-                      {!v.tenant_name && !v.host_name && v.visitor_company && <span>{v.visitor_company}</span>}
-                      <span className="ml-2 text-xs">
-                        {new Date(v.check_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => handleCheckout(v.id)}>
-                    <LogOut className="w-4 h-4 mr-1" /> Salida
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                    <Button variant="outline" size="sm" onClick={() => handleCheckout(v.id)}>
+                      <LogOut className="w-4 h-4 mr-1" aria-hidden="true" /> Salida
+                    </Button>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

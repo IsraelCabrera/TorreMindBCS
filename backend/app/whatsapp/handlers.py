@@ -7,10 +7,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.visit_record import VisitRecord
 from app.models.tenant_contact import TenantContact
 from app.models.notification_log import NotificationLog
-from app.whatsapp.client import send_template_message
+from app.whatsapp.client import send_template_message, build_whatsapp_payload
 from app.whatsapp.messages import build_host_acknowledgment, build_package_notification, build_package_collected
 from app.websocket.manager import emit_visit_update
 from app.config import settings
+
+
+async def log_dev_mock_notification(
+    db: AsyncSession,
+    template_name: str,
+    recipient: str,
+    payload: dict,
+    visit_id: uuid.UUID | None = None,
+    delivery_id: uuid.UUID | None = None,
+):
+    log = NotificationLog(
+        visit_id=visit_id,
+        delivery_id=delivery_id,
+        channel="whatsapp",
+        template_name=template_name,
+        recipient=recipient,
+        status="dev_mock",
+        meta_message_id=f"dev-{uuid.uuid4()}",
+        response_data=payload,
+        sent_at=datetime.now(timezone.utc),
+    )
+    db.add(log)
+    await db.commit()
 
 
 async def notify_host(

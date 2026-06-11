@@ -16,6 +16,8 @@ interface ActiveVisit {
   tenant_name: string | null
 }
 
+/* NOTA: Esta página no está importada en App.tsx — no se muestra en producción */
+
 export function DashboardPage() {
   const [visits, setVisits] = useState<ActiveVisit[]>([])
   const { on } = useSocket()

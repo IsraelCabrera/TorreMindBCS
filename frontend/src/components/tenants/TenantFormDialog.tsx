@@ -81,35 +81,35 @@ export function TenantFormDialog({ onClose, onSuccess }: Props) {
             <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
 
           <div className="space-y-3">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Datos del inquilino</p>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Nombre *</label>
-              <input value={name} onChange={(e) => setName(e.target.value)}
+              <label htmlFor="tenant-name" className="block text-sm font-medium text-primary mb-1">Nombre *</label>
+              <input id="tenant-name" value={name} onChange={(e) => setName(e.target.value)}
                 className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">Oficina</label>
-                <input value={unit} onChange={(e) => setUnit(e.target.value)}
+                <label htmlFor="tenant-unit" className="block text-sm font-medium text-primary mb-1">Oficina</label>
+                <input id="tenant-unit" value={unit} onChange={(e) => setUnit(e.target.value)}
                   className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">Piso</label>
-                <input type="number" value={floor} onChange={(e) => setFloor(e.target.value)}
+                <label htmlFor="tenant-floor" className="block text-sm font-medium text-primary mb-1">Piso</label>
+                <input id="tenant-floor" type="number" value={floor} onChange={(e) => setFloor(e.target.value)}
                   className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Teléfono</label>
-              <input value={primaryPhone} onChange={(e) => setPrimaryPhone(e.target.value)}
+              <label htmlFor="tenant-phone" className="block text-sm font-medium text-primary mb-1">Teléfono</label>
+              <input id="tenant-phone" value={primaryPhone} onChange={(e) => setPrimaryPhone(e.target.value)}
                 className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Email</label>
-              <input type="email" value={primaryEmail} onChange={(e) => setPrimaryEmail(e.target.value)}
+              <label htmlFor="tenant-email" className="block text-sm font-medium text-primary mb-1">Email</label>
+              <input id="tenant-email" type="email" value={primaryEmail} onChange={(e) => setPrimaryEmail(e.target.value)}
                 className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
             </div>
           </div>
@@ -127,24 +127,24 @@ export function TenantFormDialog({ onClose, onSuccess }: Props) {
                     className="text-xs text-destructive hover:underline">Eliminar</button>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-0.5">Nombre</label>
-                  <input value={c.name} onChange={(e) => updateContact(i, "name", e.target.value)}
+                  <label htmlFor={`contact-name-${i}`} className="block text-xs text-muted-foreground mb-0.5">Nombre</label>
+                  <input id={`contact-name-${i}`} value={c.name} onChange={(e) => updateContact(i, "name", e.target.value)}
                     className="w-full h-8 rounded border border-border bg-card px-2 text-sm outline-none focus:border-ring" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-0.5">Teléfono</label>
-                    <input value={c.phone} onChange={(e) => updateContact(i, "phone", e.target.value)}
+                    <label htmlFor={`contact-phone-${i}`} className="block text-xs text-muted-foreground mb-0.5">Teléfono</label>
+                    <input id={`contact-phone-${i}`} value={c.phone} onChange={(e) => updateContact(i, "phone", e.target.value)}
                       className="w-full h-8 rounded border border-border bg-card px-2 text-sm outline-none focus:border-ring" />
                   </div>
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-0.5">Email</label>
-                    <input value={c.email} onChange={(e) => updateContact(i, "email", e.target.value)}
+                    <label htmlFor={`contact-email-${i}`} className="block text-xs text-muted-foreground mb-0.5">Email</label>
+                    <input id={`contact-email-${i}`} value={c.email} onChange={(e) => updateContact(i, "email", e.target.value)}
                       className="w-full h-8 rounded border border-border bg-card px-2 text-sm outline-none focus:border-ring" />
                   </div>
                 </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={c.is_primary}
+                <label htmlFor={`contact-primary-${i}`} className="flex items-center gap-2 text-sm">
+                  <input id={`contact-primary-${i}`} type="checkbox" checked={c.is_primary}
                     onChange={(e) => updateContact(i, "is_primary", e.target.checked)}
                     className="rounded border-border" />
                   Contacto principal

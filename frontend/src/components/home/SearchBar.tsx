@@ -79,25 +79,37 @@ export function SearchBar({ onSelectVisitor, onNewVisitor }: SearchBarProps) {
     }
   }
 
+  const resultsId = "search-results"
+
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className="relative w-full" role="combobox" aria-expanded={isOpen} aria-haspopup="listbox" aria-controls={resultsId}>
       <div className="relative">
+        <label htmlFor="search-visitor" className="sr-only">Buscar visitante por nombre, teléfono o empresa</label>
         <input
           ref={inputRef}
+          id="search-visitor"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Buscar por nombre, teléfono o empresa..."
+          role="searchbox"
+          aria-autocomplete="list"
+          aria-controls={resultsId}
+          aria-activedescendant={selectedIndex >= 0 ? `search-result-${selectedIndex}` : undefined}
           className="w-full h-12 rounded-xl border-2 border-border bg-card pl-12 pr-4 text-base outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
         />
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" aria-hidden="true" />
       </div>
       {isOpen && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full border border-border rounded-xl bg-card shadow-lg divide-y divide-border overflow-hidden">
+        <div id={resultsId} role="listbox" aria-label="Resultados de búsqueda"
+          className="absolute z-50 mt-1 w-full border border-border rounded-xl bg-card shadow-lg divide-y divide-border overflow-hidden">
           {results.map((v, i) => (
             <button
               key={v.id}
+              id={`search-result-${i}`}
+              role="option"
+              aria-selected={i === selectedIndex}
               onClick={() => { onSelectVisitor(v); setIsOpen(false); setQuery("") }}
               onMouseEnter={() => setSelectedIndex(i)}
               className={`w-full text-left px-4 py-3 transition-colors ${

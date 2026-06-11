@@ -35,22 +35,24 @@ export function TenantsPage() {
           <h2 className="text-xl font-semibold text-primary">Directorio de Inquilinos</h2>
         </div>
         {user?.role === "admin" && (
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="w-4 h-4 mr-1" />
+          <Button onClick={() => setShowForm(true)} aria-label="Agregar nuevo inquilino">
+            <Plus className="w-4 h-4 mr-1" aria-hidden="true" />
             Nuevo
           </Button>
         )}
       </div>
 
-      {tenants.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-10">
-          No hay inquilinos registrados.
-        </p>
-      )}
+      <div aria-live="polite" aria-atomic="true">
+        {tenants.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-10">
+            No hay inquilinos registrados.
+          </p>
+        )}
+      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" role="list" aria-label="Directorio de inquilinos">
         {tenants.map((t) => (
-          <Card key={t.id}>
+          <Card key={t.id} role="listitem">
             <CardContent className="p-4">
               <h3 className="font-semibold text-primary">{t.name}</h3>
               {t.unit && <p className="text-sm text-muted-foreground">Oficina: {t.unit}</p>}

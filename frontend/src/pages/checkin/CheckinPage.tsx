@@ -97,12 +97,14 @@ export function CheckinPage() {
         <CardContent className="space-y-6">
           <h2 className="text-xl font-semibold text-primary">Registro de Visita</h2>
 
-          <div>
-            <label className="block text-sm font-medium text-primary mb-2">Tipo de visitante</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <fieldset>
+            <legend className="sr-only">Tipo de visitante</legend>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="radiogroup" aria-label="Tipo de visitante">
               {visitorTypes.map((t) => (
                 <button
                   key={t.value}
+                  role="radio"
+                  aria-checked={visitorType === t.value}
                   onClick={() => setVisitorType(t.value)}
                   className={`px-3 py-2 rounded-md text-sm font-medium border transition-colors ${
                     visitorType === t.value
@@ -114,25 +116,27 @@ export function CheckinPage() {
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
 
           <div>
-            <label className="block text-sm font-medium text-primary mb-1">Buscar visitante existente</label>
+            <label htmlFor="checkin-search" className="block text-sm font-medium text-primary mb-1">Buscar visitante existente</label>
             <div className="relative">
               <input
+                id="checkin-search"
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Nombre, teléfono o empresa..."
                 className="w-full h-9 rounded-md border border-border bg-card px-3 py-1 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
               />
-              <Search className="absolute right-3 top-2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute right-3 top-2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
             </div>
             {visitors.length > 0 && (
-              <div className="mt-1 border border-border rounded-md bg-card divide-y divide-border">
+              <div className="mt-1 border border-border rounded-md bg-card divide-y divide-border" role="listbox" aria-label="Visitantes encontrados">
                 {visitors.map((v) => (
                   <button
                     key={v.id}
+                    role="option"
                     onClick={() => selectVisitor(v)}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
                   >
@@ -146,8 +150,9 @@ export function CheckinPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Nombre *</label>
+              <label htmlFor="checkin-name" className="block text-sm font-medium text-primary mb-1">Nombre *</label>
               <input
+                id="checkin-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -155,8 +160,9 @@ export function CheckinPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Teléfono</label>
+              <label htmlFor="checkin-phone" className="block text-sm font-medium text-primary mb-1">Teléfono</label>
               <input
+                id="checkin-phone"
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -164,8 +170,9 @@ export function CheckinPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Empresa</label>
+              <label htmlFor="checkin-company" className="block text-sm font-medium text-primary mb-1">Empresa</label>
               <input
+                id="checkin-company"
                 type="text"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
@@ -173,8 +180,9 @@ export function CheckinPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Anfitrión (tenant)</label>
+              <label htmlFor="checkin-tenant" className="block text-sm font-medium text-primary mb-1">Anfitrión (tenant)</label>
               <select
+                id="checkin-tenant"
                 value={selectedTenant}
                 onChange={(e) => setSelectedTenant(e.target.value)}
                 className="w-full h-9 rounded-md border border-border bg-card px-3 py-1 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
@@ -186,8 +194,9 @@ export function CheckinPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Nombre del anfitrión</label>
+              <label htmlFor="checkin-host" className="block text-sm font-medium text-primary mb-1">Nombre del anfitrión</label>
               <input
+                id="checkin-host"
                 type="text"
                 value={hostName}
                 onChange={(e) => setHostName(e.target.value)}
@@ -195,8 +204,9 @@ export function CheckinPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Motivo</label>
+              <label htmlFor="checkin-purpose" className="block text-sm font-medium text-primary mb-1">Motivo</label>
               <input
+                id="checkin-purpose"
                 type="text"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}

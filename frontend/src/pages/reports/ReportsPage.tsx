@@ -26,7 +26,7 @@ export function ReportsPage() {
             <h3 className="font-semibold">Resumen Diario</h3>
             <Button onClick={loadReport} size="sm">Cargar</Button>
             {report && (
-              <div className="text-sm space-y-1">
+              <div className="text-sm space-y-1" aria-live="polite">
                 <p>Total: <strong>{report.total}</strong></p>
                 {Object.entries(report.breakdown).map(([k, v]) => (
                   <p key={k} className="text-muted-foreground">{k}: {v}</p>
@@ -39,9 +39,9 @@ export function ReportsPage() {
           <CardContent className="space-y-3 p-4">
             <h3 className="font-semibold">Métricas de Acción</h3>
             <Button onClick={loadMetrics} size="sm">Cargar</Button>
-            {metrics && Object.entries(metrics).map(([k, v]) => (
+            {metrics && <div aria-live="polite">{Object.entries(metrics).map(([k, v]) => (
               <p key={k} className="text-sm text-muted-foreground">{k}: avg {v.avg_ms}ms ({v.count} veces)</p>
-            ))}
+            ))}</div>}
           </CardContent>
         </Card>
       </div>

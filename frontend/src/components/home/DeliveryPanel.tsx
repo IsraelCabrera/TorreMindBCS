@@ -94,8 +94,9 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-primary mb-0.5">Mensajería *</label>
+              <label htmlFor="panel-courier" className="block text-xs font-medium text-primary mb-0.5">Mensajería *</label>
               <select
+                id="panel-courier"
                 value={courier}
                 onChange={(e) => setCourier(e.target.value)}
                 className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring"
@@ -107,8 +108,9 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-primary mb-0.5">No. Guía</label>
+              <label htmlFor="panel-guide" className="block text-xs font-medium text-primary mb-0.5">No. Guía</label>
               <input
+                id="panel-guide"
                 type="text"
                 value={guideNumber}
                 onChange={(e) => setGuideNumber(e.target.value)}
@@ -117,20 +119,28 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
               />
             </div>
             <div className="relative">
-              <label className="block text-xs font-medium text-primary mb-0.5">Destinatario *</label>
+              <label htmlFor="panel-recipient" className="block text-xs font-medium text-primary mb-0.5">Destinatario *</label>
               <input
+                id="panel-recipient"
                 type="text"
                 value={recipientQuery}
                 onChange={(e) => { setRecipientQuery(e.target.value); setShowRecipientDropdown(true) }}
                 onFocus={() => setShowRecipientDropdown(true)}
                 placeholder="Buscar..."
+                role="combobox"
+                aria-expanded={showRecipientDropdown}
+                aria-haspopup="listbox"
+                aria-controls="panel-recipient-list"
+                aria-autocomplete="list"
                 className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring"
               />
               {showRecipientDropdown && filteredRecipients.length > 0 && (
-                <div className="absolute z-50 mt-0.5 w-full border border-border rounded-md bg-card shadow-lg max-h-40 overflow-y-auto">
+                <div id="panel-recipient-list" role="listbox" aria-label="Opciones de destinatario"
+                  className="absolute z-50 mt-0.5 w-full border border-border rounded-md bg-card shadow-lg max-h-40 overflow-y-auto">
                   {filteredRecipients.map((r, i) => (
                     <button
                       key={i}
+                      role="option"
                       onClick={() => selectRecipient(r.value, r.phone)}
                       className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
                     >
@@ -141,8 +151,9 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
               )}
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-primary mb-0.5">Descripción</label>
+              <label htmlFor="panel-description" className="block text-xs font-medium text-primary mb-0.5">Descripción</label>
               <input
+                id="panel-description"
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -153,7 +164,7 @@ export function DeliveryPanel({ onClose, onSuccess }: DeliveryPanelProps) {
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</p>
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2" role="alert">{error}</p>
           )}
           <Button onClick={handleSubmit} disabled={loading || !courier || !recipientName} className="w-full">
             {loading ? "Notificando..." : "Notificar"}

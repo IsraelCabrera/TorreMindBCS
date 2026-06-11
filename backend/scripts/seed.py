@@ -1,4 +1,4 @@
-"""Seed the database with default users.
+"""Seed the database with default users and mock data for testing.
 
 Usage:
     uv run python -m scripts.seed
@@ -16,11 +16,13 @@ Idempotent: safe to run multiple times.
 
 import logging
 import os
+import uuid
 import asyncio
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import hash_password
@@ -28,8 +30,14 @@ from app.database import engine
 from app.log import setup_logging
 from app.models import *  # noqa: F403 — ensure all models loaded for migrations
 from app.models.user import User
+from app.models.visitor import Visitor
+from app.models.visit_record import VisitRecord
 from app.models.tenant import Tenant
 from app.models.tenant_contact import TenantContact
+from app.models.delivery import DeliveryRecord
+from app.models.blocklist import BlocklistEntry
+from app.models.notification_log import NotificationLog
+from app.models.metric_log import MetricLog
 
 logger = setup_logging(name="seed", log_file="seed.log", level=logging.INFO)
 
@@ -56,6 +64,26 @@ DEFAULT_USERS = [
 ]
 
 
+SAMPLE_VISITORS = [
+    {"name": "Juan Pérez", "phone": "+526649876543", "company": "Acme Corp"},
+    {"name": "María García", "phone": "+526641112233", "company": "Servicios DG"},
+    {"name": "Carlos López", "phone": "+526644556677", "company": None},
+    {"name": "Ana Martínez", "phone": "+526647788990", "company": "Tech Solutions"},
+    {"name": "Roberto Sánchez", "phone": "+526643322111", "company": "Constructora MX"},
+]
+
+SAMPLE_DELIVERIES = [
+    {"courier": "DHL", "recipient_name": "Alejandra García", "description": "Documentos legales", "guide_number": "DHL-9876543210"},
+    {"courier": "FedEx", "recipient_name": "Carlos Jiménez", "description": "Paquete mediano", "guide_number": "FX-1234567890"},
+    {"courier": "Estafeta", "recipient_name": "Lic. Fernanda Torres", "description": "Caja chica", "guide_number": "EST-555666777"},
+]
+
+SAMPLE_BLOCKLIST = [
+    {"name": "Jorge Rentería", "reason": "Acceso no autorizado reiterado", "phone": "+526649999999"},
+    {"name": "Lucía Fernández", "reason": "Reporte de conducta inapropiada", "phone": None},
+]
+
+
 async def _ensure_tables():
     async with engine.connect() as conn:
         tables = await conn.execute(
@@ -64,6 +92,7 @@ async def _ensure_tables():
                  "AND table_name != 'alembic_version'")
         )
         return [r[0] for r in tables]
+
 
 def _run_migrations(force: bool = False):
     base_dir = os.path.dirname(os.path.dirname(__file__))
@@ -84,20 +113,126 @@ def _run_migrations(force: bool = False):
             logger.info("migration: %s", line)
 
 
+async def _get_or_create_visitors(session: AsyncSession) -> list[Visitor]:
+    existing = (await session.execute(select(Visitor))).scalars().all()
+    if existing:
+        logger.info("Visitors already exist, skipping")
+        return list(existing)
+
+    visitors = []
+    for vd in SAMPLE_VISITORS:
+        visitor = Visitor(**vd)
+        session.add(visitor)
+        visitors.append(visitor)
+        logger.info("Created visitor: %s", vd["name"])
+    await session.flush()
+    return visitors
+
+
+async def _get_or_create_visits(session: AsyncSession, visitors: list[Visitor],
+                                 staff_user: User, tenants: list[Tenant]) -> None:
+    existing = (await session.execute(select(VisitRecord).limit(1))).scalar_one_or_none()
+    if existing:
+        logger.info("Visits already exist, skipping")
+        return
+
+    now = datetime.now(timezone.utc)
+    visit_data = [
+        {"visitor": visitors[0], "tenant": tenants[0], "status": "approved",
+         "check_in_at": now - timedelta(hours=1), "host_name": "Alejandra García",
+         "visitor_type": "tenant_visitor", "acknowledged_at": now - timedelta(minutes=55)},
+        {"visitor": visitors[1], "tenant": tenants[1], "status": "pending",
+         "check_in_at": now - timedelta(minutes=30), "host_name": "Carlos Jiménez",
+         "visitor_type": "vendor"},
+        {"visitor": visitors[2], "tenant": None, "status": "checked_out",
+         "check_in_at": now - timedelta(hours=3), "check_out_at": now - timedelta(hours=1),
+         "visitor_type": "walk_in"},
+        {"visitor": visitors[3], "tenant": tenants[4], "status": "staff_decision",
+         "check_in_at": now - timedelta(minutes=45), "host_name": "Mónica Herrera",
+         "visitor_type": "prospective_tenant", "escalation_state": "staff_decision_needed"},
+    ]
+    for vd in visit_data:
+        visitor = vd.pop("visitor")
+        tenant = vd.pop("tenant")
+        visit = VisitRecord(
+            visitor_id=visitor.id,
+            tenant_id=tenant.id if tenant else None,
+            created_by_user_id=staff_user.id,
+            **vd,
+        )
+        session.add(visit)
+        logger.info("Created visit: %s → %s (%s)", visitor.name,
+                     tenant.name if tenant else "(sin tenant)", vd["status"])
+    await session.flush()
+
+
+async def _get_or_create_deliveries(session: AsyncSession, staff_user: User,
+                                     tenants: list[Tenant]) -> None:
+    existing = (await session.execute(select(DeliveryRecord).limit(1))).scalar_one_or_none()
+    if existing:
+        logger.info("Deliveries already exist, skipping")
+        return
+
+    now = datetime.now(timezone.utc)
+    tenant_map = {
+        "Alejandra García": tenants[0],
+        "Carlos Jiménez": tenants[1],
+        "Lic. Fernanda Torres": tenants[2],
+    }
+    for dd in SAMPLE_DELIVERIES:
+        delivery = DeliveryRecord(
+            courier=dd["courier"],
+            recipient_name=dd["recipient_name"],
+            description=dd["description"],
+            guide_number=dd["guide_number"],
+            tenant_id=tenant_map[dd["recipient_name"]].id,
+            check_in_at=now - timedelta(hours=2),
+        )
+        session.add(delivery)
+        logger.info("Created delivery: %s → %s", dd["courier"], dd["recipient_name"])
+    await session.flush()
+
+
+async def _get_or_create_blocklist(session: AsyncSession, admin_user: User) -> None:
+    existing = (await session.execute(select(BlocklistEntry).limit(1))).scalar_one_or_none()
+    if existing:
+        logger.info("Blocklist entries already exist, skipping")
+        return
+
+    for be in SAMPLE_BLOCKLIST:
+        entry = BlocklistEntry(
+            name=be["name"],
+            reason=be["reason"],
+            phone=be.get("phone"),
+            added_by_user_id=admin_user.id,
+        )
+        session.add(entry)
+        logger.info("Created blocklist: %s", be["name"])
+    await session.flush()
+
+
 async def seed():
     logger.info("Running migrations...")
     tables_exist = await _ensure_tables()
     _run_migrations(force=not tables_exist)
     logger.info("Seeding database...")
+
     async with AsyncSession(engine) as session:
-        created = 0
-        skipped = 0
+        created_users = 0
+        skipped_users = 0
+        staff_user = None
+        admin_user = None
 
         for u in DEFAULT_USERS:
             result = await session.execute(select(User).where(User.email == u["email"]))
-            if result.scalar_one_or_none():
+            existing_user = result.scalar_one_or_none()
+            if existing_user:
                 logger.info("⏭ %s — already exists, skipping", u["email"])
-                skipped += 1
+                skipped_users += 1
+                if existing_user.role == "lobby_staff":
+                    staff_user = existing_user
+                if existing_user.role == "admin":
+                    admin_user = existing_user
                 continue
 
             user = User(
@@ -107,13 +242,25 @@ async def seed():
                 role=u["role"],
             )
             session.add(user)
-            created += 1
+            await session.flush()
+            if user.role == "lobby_staff":
+                staff_user = user
+            if user.role == "admin":
+                admin_user = user
+            created_users += 1
             logger.info("Created %s (%s)", u["email"], u["role"])
 
-        # Seed sample tenants if none exist
-        result = await session.execute(select(Tenant).limit(1))
-        if not result.scalar_one_or_none():
-            tenants_data = [
+        # Delete and recreate tenants to guarantee idempotency
+        # Order matters: child tables first (FK constraints)
+        await session.execute(delete(VisitRecord))
+        await session.execute(delete(DeliveryRecord))
+        await session.execute(delete(BlocklistEntry))
+        await session.execute(delete(NotificationLog))
+        await session.execute(delete(MetricLog))
+        await session.execute(delete(TenantContact))
+        await session.execute(delete(Tenant))
+        await session.execute(delete(Visitor))
+        tenants_data = [
                 {
                     "name": "Dynamo Coworking",
                     "unit": "4-A",
@@ -163,20 +310,47 @@ async def seed():
                     ],
                 },
             ]
-            for td in tenants_data:
-                contacts = td.pop("contacts")
-                tenant = Tenant(**td)
-                session.add(tenant)
-                await session.flush()
-                for cd in contacts:
-                    contact = TenantContact(tenant_id=tenant.id, **cd)
-                    session.add(contact)
-                logger.info("Created tenant: %s (%d contacts)", td["name"], len(contacts))
-        else:
-            logger.info("Tenants already exist, skipping seed")
+        for td in tenants_data:
+            contacts_list = td.pop("contacts")
+            tenant = Tenant(**td)
+            session.add(tenant)
+            await session.flush()
+            for cd in contacts_list:
+                contact = TenantContact(tenant_id=tenant.id, **cd)
+                session.add(contact)
+            logger.info("Created tenant: %s (%d contacts)", td["name"], len(contacts_list))
 
         await session.commit()
-        logger.info("Done. %d created, %d skipped.", created, skipped)
+
+        await _get_or_create_visitors(session)
+        await session.commit()
+
+        # Re-query all entities fresh — commit expires session objects
+        tenants = (await session.execute(select(Tenant))).scalars().all()
+        visitors = (await session.execute(select(Visitor))).scalars().all()
+        staff_user = (await session.execute(
+            select(User).where(User.role == "lobby_staff").limit(1)
+        )).scalar_one_or_none()
+        admin_user = (await session.execute(
+            select(User).where(User.role == "admin").limit(1)
+        )).scalar_one_or_none()
+
+        if staff_user:
+            await _get_or_create_visits(session, visitors, staff_user, tenants)
+            await _get_or_create_deliveries(session, staff_user, tenants)
+            await session.commit()
+        else:
+            logger.warning("No staff user found — skipping visits and deliveries seed")
+
+        if admin_user:
+            # Re-query admin_user fresh — previous commit expired it
+            admin_user = (await session.execute(
+                select(User).where(User.role == "admin").limit(1)
+            )).scalar_one_or_none()
+            await _get_or_create_blocklist(session, admin_user)
+            await session.commit()
+
+        logger.info("Done. Users: %d created, %d skipped.", created_users, skipped_users)
 
     await engine.dispose()
 

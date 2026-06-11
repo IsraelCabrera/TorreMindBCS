@@ -35,23 +35,32 @@ export function HistoryPage() {
     checked_out: "bg-gray-100 text-gray-600", staff_decision: "bg-orange-100 text-orange-800",
   }
 
+  const statusLabels: Record<string, string> = {
+    pending: "Pendiente", approved: "Aprobado",
+    denied: "Denegado", escalated: "Escalado",
+    checked_out: "Check-out", staff_decision: "Revisión",
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 w-full">
       <h2 className="text-xl font-semibold text-primary mb-4">Historial de Visitas</h2>
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap gap-3 p-4">
-          <input placeholder="Visitante" value={filters.visitor_name} onChange={(e) => setFilters({ ...filters, visitor_name: e.target.value })}
+          <label htmlFor="history-visitor" className="sr-only">Nombre del visitante</label>
+          <input id="history-visitor" placeholder="Visitante" value={filters.visitor_name} onChange={(e) => setFilters({ ...filters, visitor_name: e.target.value })}
             className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring flex-1 min-w-[150px]" />
-          <input placeholder="Tenant" value={filters.tenant_name} onChange={(e) => setFilters({ ...filters, tenant_name: e.target.value })}
+          <label htmlFor="history-tenant" className="sr-only">Nombre del tenant</label>
+          <input id="history-tenant" placeholder="Tenant" value={filters.tenant_name} onChange={(e) => setFilters({ ...filters, tenant_name: e.target.value })}
             className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring flex-1 min-w-[150px]" />
-          <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+          <label htmlFor="history-status" className="sr-only">Filtrar por estado</label>
+          <select id="history-status" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}
             className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring">
             <option value="">Todos los estados</option>
             <option value="pending">Pendiente</option><option value="approved">Aprobado</option>
             <option value="denied">Denegado</option><option value="checked_out">Check-out</option>
           </select>
-          <Button onClick={search} size="sm"><Search className="w-4 h-4 mr-1" /> Buscar</Button>
+          <Button onClick={search} size="sm"><Search className="w-4 h-4 mr-1" aria-hidden="true" /> Buscar</Button>
         </CardContent>
       </Card>
 
@@ -61,7 +70,7 @@ export function HistoryPage() {
         <p className="text-center text-muted-foreground py-8">No se encontraron visitas.</p>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-2" aria-live="polite" aria-atomic="true">
         {visits.map((v) => (
           <Card key={v.id}>
             <CardContent className="flex items-center justify-between p-4">
@@ -69,7 +78,7 @@ export function HistoryPage() {
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{v.visitor_name}</span>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColors[v.status] || "bg-gray-100"}`}>
-                    {v.status}
+                    <span className="sr-only">Estado: </span>{statusLabels[v.status] || v.status}
                   </span>
                   <span className="text-xs text-muted-foreground">{v.visitor_type}</span>
                 </div>

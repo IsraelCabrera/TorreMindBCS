@@ -216,6 +216,7 @@ PENDING ──► ESCALATED ──► STAFF_DECISION
 - Backend builds/imports verified clean (`uv run python3 -c "from app... all OK"`). Frontend builds clean (`npx tsc -b && vite build`).
 - Test suite has 69 tests across 10 modules covering auth, RBAC, visitors, visits (check-in/check-out/history/escalate/notify-retry), tenants + contacts CRUD, deliveries (create/list/collect/notify), blocklist (list/add/check/delete), reports (daily/metrics), admin (list/create/update/password), and webhook (verification + inbound button_reply). Tests use shared db_session per test with rollback teardown.
 - `notify_host` and `notify_delivery_recipient` will fail gracefully (no exception) when WhatsApp credentials are empty (invalid token response caught in try/except).
+- `scripts/seed.py` is idempotent — deletes all data and recreates it from scratch. Must re-query all ORM objects after each `session.commit()` else they expire and raise `MissingGreenlet` on attribute access. Run with `uv run python -m scripts.seed` from `backend/`.
 - pytest-asyncio 1.4.0 uses `loop_scope` instead of the deprecated `event_loop` fixture. Configured via `asyncio_default_fixture_loop_scope = "session"` and `asyncio_default_test_loop_scope = "session"` in `pyproject.toml` to avoid asyncpg "different loop" errors.
 
 ## Relevant Files
@@ -237,3 +238,4 @@ PENDING ──► ESCALATED ──► STAFF_DECISION
 - `/Users/israel/dev/torremind/VLMSControl/frontend/src/components/layout/*.tsx`: Header, Footer, Layout.
 - `/Users/israel/dev/torremind/VLMSControl/frontend/src/services/api.ts`: Fetch wrapper with Bearer token + 401 redirect.
 - `/Users/israel/dev/torremind/VLMSControl/frontend/src/hooks/useSocket.ts`: Socket.IO connection hook.
+- `/Users/israel/dev/torremind/VLMSControl/backend/scripts/seed.py`: Idempotent seed script — deletes all data and recreates users, tenants+contacts, visitors, visits, deliveries, and blocklist entries for local testing.

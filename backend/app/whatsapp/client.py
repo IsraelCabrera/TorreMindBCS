@@ -33,3 +33,17 @@ async def send_template_message(to: str, template_name: str, language_code: str 
 
 async def send_text_message(to: str, text: str):
     return await send_whatsapp_message(to, {"type": "text", "text": {"preview_url": False, "body": text}})
+
+
+def build_whatsapp_payload(to: str, template_name: str, language_code: str, components: list) -> dict:
+    return {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": language_code},
+            "components": components,
+        },
+    }

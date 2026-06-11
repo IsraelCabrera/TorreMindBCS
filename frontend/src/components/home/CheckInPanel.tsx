@@ -107,26 +107,32 @@ export function CheckInPanel({ visitor, defaultType, onClose, onSuccess }: Check
         </div>
 
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {visitorTypes.map((t) => (
-              <button
-                key={t.value}
-                onClick={() => setVisitorType(t.value)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
-                  visitorType === t.value
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card text-foreground border-border hover:border-primary/50"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <fieldset>
+            <legend className="sr-only">Tipo de visitante</legend>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Tipo de visitante">
+              {visitorTypes.map((t) => (
+                <button
+                  key={t.value}
+                  role="radio"
+                  aria-checked={visitorType === t.value}
+                  onClick={() => setVisitorType(t.value)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                    visitorType === t.value
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-foreground border-border hover:border-primary/50"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-primary mb-0.5">Nombre *</label>
+              <label htmlFor="panel-name" className="block text-xs font-medium text-primary mb-0.5">Nombre *</label>
               <input
+                id="panel-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -134,8 +140,9 @@ export function CheckInPanel({ visitor, defaultType, onClose, onSuccess }: Check
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-primary mb-0.5">Teléfono</label>
+              <label htmlFor="panel-phone" className="block text-xs font-medium text-primary mb-0.5">Teléfono</label>
               <input
+                id="panel-phone"
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -143,8 +150,9 @@ export function CheckInPanel({ visitor, defaultType, onClose, onSuccess }: Check
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-primary mb-0.5">Empresa</label>
+              <label htmlFor="panel-company" className="block text-xs font-medium text-primary mb-0.5">Empresa</label>
               <input
+                id="panel-company"
                 type="text"
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
@@ -152,20 +160,28 @@ export function CheckInPanel({ visitor, defaultType, onClose, onSuccess }: Check
               />
             </div>
             <div className="relative">
-              <label className="block text-xs font-medium text-primary mb-0.5">Anfitrión</label>
+              <label htmlFor="panel-host" className="block text-xs font-medium text-primary mb-0.5">Anfitrión</label>
               <input
+                id="panel-host"
                 type="text"
                 value={hostQuery}
                 onChange={(e) => { setHostQuery(e.target.value); setShowHostDropdown(true) }}
                 onFocus={() => setShowHostDropdown(true)}
                 placeholder="Buscar..."
+                role="combobox"
+                aria-expanded={showHostDropdown}
+                aria-haspopup="listbox"
+                aria-controls="panel-host-list"
+                aria-autocomplete="list"
                 className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring"
               />
               {showHostDropdown && filteredHosts.length > 0 && (
-                <div className="absolute z-50 mt-0.5 w-full border border-border rounded-md bg-card shadow-lg max-h-40 overflow-y-auto">
+                <div id="panel-host-list" role="listbox" aria-label="Opciones de anfitrión"
+                  className="absolute z-50 mt-0.5 w-full border border-border rounded-md bg-card shadow-lg max-h-40 overflow-y-auto">
                   {filteredHosts.map((h, i) => (
                     <button
                       key={i}
+                      role="option"
                       onClick={() => selectHost(h.value, h.tenantId)}
                       className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
                     >
@@ -176,8 +192,9 @@ export function CheckInPanel({ visitor, defaultType, onClose, onSuccess }: Check
               )}
             </div>
             <div>
-              <label className="block text-xs font-medium text-primary mb-0.5">Motivo</label>
+              <label htmlFor="panel-purpose" className="block text-xs font-medium text-primary mb-0.5">Motivo</label>
               <input
+                id="panel-purpose"
                 type="text"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}

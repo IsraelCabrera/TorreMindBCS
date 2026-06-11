@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { Button } from "../ui/button"
 
 const navLinks = [
@@ -10,14 +10,16 @@ const navLinks = [
 ]
 
 export function Header() {
+  const location = useLocation()
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
-          <Link to="/" className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink hover:opacity-80 transition-opacity">
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink hover:opacity-80 transition-opacity" aria-label="Ir al inicio">
             <div className="w-32 h-10 sm:w-40 sm:h-12 flex items-center justify-center flex-shrink-0">
               <img
-                alt="MIND Logo"
+                alt="Logo de Torre MIND"
                 width={160}
                 height={48}
                 className="object-contain"
@@ -34,14 +36,14 @@ export function Header() {
               </p>
             </div>
           </Link>
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1" aria-label="Navegación principal">
             {navLinks.map((l) => (
-              <Link key={l.to} to={l.to}>
+              <Link key={l.to} to={l.to} aria-current={location.pathname === l.to ? "page" : undefined}>
                 <Button variant="ghost" size="sm">{l.label}</Button>
               </Link>
             ))}
           </nav>
-          <nav className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          <nav className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0" aria-label="Acciones rápidas">
             <Link to="/exit">
               <Button variant="outline" size="sm">
                 <span className="hidden sm:inline">Salida</span>

@@ -23,7 +23,7 @@ export function QuickActions({ onAction }: QuickActionsProps) {
           onClick={() => onAction(a.type)}
           className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${a.color}`}
         >
-          <a.icon className="w-4 h-4" />
+          <a.icon className="w-4 h-4" aria-hidden="true" />
           {a.label}
         </button>
       ))}

@@ -47,40 +47,43 @@ export function ExitPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-primary">Nombre</label>
+            <label htmlFor="exit-search" className="text-sm font-medium text-primary">Nombre del visitante</label>
             <div className="flex gap-2">
               <div className="flex-1 relative">
                 <input
+                  id="exit-search"
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Nombre del visitante..."
                   className="w-full h-9 rounded-md border border-border bg-card px-3 py-1 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring/50"
                 />
-                <Search className="absolute right-3 top-2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute right-3 top-2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               </div>
             </div>
           </div>
 
           {loading && <p className="text-sm text-muted-foreground">Buscando...</p>}
 
-          {results.length > 0 && (
-            <div className="space-y-2">
-              {results.map((r) => (
-                <div key={r.id} className="flex items-center justify-between p-3 border border-border rounded-md">
-                  <div>
-                    <p className="font-medium text-sm">{r.visitor_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.tenant_name || "Sin anfitrión"} — {new Date(r.check_in_at).toLocaleString()}
-                    </p>
+          <div aria-live="polite" aria-atomic="true">
+            {results.length > 0 && (
+              <div className="space-y-2">
+                {results.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between p-3 border border-border rounded-md">
+                    <div>
+                      <p className="font-medium text-sm">{r.visitor_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.tenant_name || "Sin anfitrión"} — {new Date(r.check_in_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={() => handleCheckout(r.id)}>
+                      <LogOut className="w-4 h-4 mr-1" /> Salida
+                    </Button>
                   </div>
-                  <Button size="sm" onClick={() => handleCheckout(r.id)}>
-                    <LogOut className="w-4 h-4 mr-1" /> Salida
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

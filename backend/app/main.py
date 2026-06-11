@@ -75,7 +75,7 @@ async def health():
     return {"status": "ok"}
 
 
-from app.api.v1 import auth, visitors, visits, tenants, deliveries, blocklist, reports, admin
+from app.api.v1 import auth, visitors, visits, tenants, deliveries, blocklist, reports, admin, public, dev
 from app.whatsapp import webhook
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
@@ -86,4 +86,8 @@ app.include_router(deliveries.router, prefix="/api/v1/deliveries", tags=["delive
 app.include_router(blocklist.router, prefix="/api/v1/blocklist", tags=["blocklist"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(public.router, prefix="/api/v1/public", tags=["public"])
 app.include_router(webhook.router, prefix="/webhooks", tags=["webhooks"])
+
+if settings.environment == "dev":
+    app.include_router(dev.router, prefix="/api/v1", tags=["dev"])

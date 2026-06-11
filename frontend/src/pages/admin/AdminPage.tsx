@@ -29,16 +29,18 @@ export function AdminPage() {
         <CardContent className="space-y-6 p-8 text-center">
           <h2 className="text-2xl font-bold text-primary">Iniciar Sesión</h2>
           <p className="text-sm text-muted-foreground">Acceso para administradores y personal del lobby</p>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
           <div className="space-y-3 text-left">
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              <label htmlFor="admin-email" className="block text-sm font-medium text-primary mb-1">Email</label>
+              <input id="admin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Contraseña</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              <label htmlFor="admin-password" className="block text-sm font-medium text-primary mb-1">Contraseña</label>
+              <input id="admin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 className="w-full h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
             </div>
           </div>

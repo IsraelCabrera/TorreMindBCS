@@ -22,7 +22,10 @@ async def schedule_escalation(visit_id: str, delay_seconds: int) -> None:
 
 
 async def escalate_visit(ctx: dict, visit_id: str) -> None:
-    visit_uuid = uuid.UUID(visit_id)
+    try:
+        visit_uuid = uuid.UUID(visit_id)
+    except ValueError:
+        return
     async with async_session() as db:
         result = await db.execute(select(VisitRecord).where(VisitRecord.id == visit_uuid))
         visit = result.scalar_one_or_none()

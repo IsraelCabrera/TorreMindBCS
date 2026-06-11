@@ -2,10 +2,19 @@ import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "../../components/ui/card"
 import { UserPlus, Repeat } from "lucide-react"
 
+/* NOTA: Esta página no está importada en App.tsx — no se muestra en producción */
+
 const tenants = ["Dynamo Coworking", "Bajapack", "NexusFuel", "Viamericas", "Integon", "Terraza"]
 
 export function HomePage() {
   const navigate = useNavigate()
+
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      navigate("/checkin")
+    }
+  }
 
   return (
     <section className="w-full py-2 sm:py-3 md:py-4 flex flex-col flex-1">
@@ -25,12 +34,16 @@ export function HomePage() {
           <div className="w-full max-w-2xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <Card
-                className="cursor-pointer transition-all duration-200 hover:shadow-lg border-2 border-border hover:border-primary/50"
+                tabIndex={0}
+                role="button"
+                aria-label="Registrar visitante por primera vez"
+                className="cursor-pointer transition-all duration-200 hover:shadow-lg border-2 border-border hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 onClick={() => navigate("/checkin")}
+                onKeyDown={handleCardKeyDown}
               >
                 <CardContent className="p-4 sm:p-5 md:p-6 flex flex-col items-center text-center space-y-2 sm:space-y-3">
                   <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-muted text-muted-foreground">
-                    <UserPlus className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
+                    <UserPlus className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" aria-hidden="true" />
                   </div>
                   <div className="space-y-1 sm:space-y-2">
                     <h4 className="font-semibold text-base sm:text-lg text-primary">Visitante por primera vez</h4>
@@ -38,12 +51,16 @@ export function HomePage() {
                 </CardContent>
               </Card>
               <Card
-                className="cursor-pointer transition-all duration-200 hover:shadow-lg border-2 border-border hover:border-primary/50"
+                tabIndex={0}
+                role="button"
+                aria-label="Registrar visitante frecuente"
+                className="cursor-pointer transition-all duration-200 hover:shadow-lg border-2 border-border hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 onClick={() => navigate("/checkin")}
+                onKeyDown={handleCardKeyDown}
               >
                 <CardContent className="p-4 sm:p-5 md:p-6 flex flex-col items-center text-center space-y-2 sm:space-y-3">
                   <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-muted text-muted-foreground">
-                    <Repeat className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
+                    <Repeat className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" aria-hidden="true" />
                   </div>
                   <div className="space-y-1 sm:space-y-2">
                     <h4 className="font-semibold text-base sm:text-lg text-primary">Visitante frecuente</h4>

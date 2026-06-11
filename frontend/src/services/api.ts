@@ -37,3 +37,22 @@ export const api = {
   put: (path: string, body?: unknown) => request(path, { method: "PUT", body: JSON.stringify(body) }),
   delete: (path: string) => request(path, { method: "DELETE" }),
 }
+
+async function devRequest(path: string, options: RequestInit = {}) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-Dev-Mode": "true",
+    ...((options.headers as Record<string, string>) || {}),
+  }
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }))
+    throw new Error(err.detail || "Request failed")
+  }
+  return res.json()
+}
+
+export const devApi = {
+  get: (path: string) => devRequest(path),
+  post: (path: string, body?: unknown) => devRequest(path, { method: "POST", body: JSON.stringify(body) }),
+}
