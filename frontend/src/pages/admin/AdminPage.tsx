@@ -32,13 +32,18 @@ function LoginForm({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const navigate = useNavigate()
 
   const handleLogin = async () => {
     setLoading(true)
     setError("")
     try {
-      await login(email, password)
-      onLogin()
+      const user = await login(email, password)
+      if (user.role === "admin") {
+        onLogin()
+      } else {
+        navigate("/dashboard")
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión")
     }

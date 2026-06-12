@@ -51,3 +51,9 @@ export async function fetchMe(): Promise<User | null> {
     return null
   }
 }
+
+export function logout() {
+  setToken(null)
+  setUser(null)
+  window.location.href = "/admin-page-mind"
+}

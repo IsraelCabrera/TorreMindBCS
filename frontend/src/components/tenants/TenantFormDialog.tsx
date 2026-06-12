@@ -63,7 +63,7 @@ export function TenantFormDialog({ onClose, onSuccess, tenant }: Props) {
       const body = {
         name: name.trim(),
         unit: unit.trim() || null,
-        floor: floor ? Number(floor) : null,
+        floor: floor !== "" ? Number(floor) : null,
         primary_phone: primaryPhone.trim() || null,
         primary_email: primaryEmail.trim() || null,
       }

@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom"
 import { Button } from "../ui/button"
-import { getUser } from "../../services/auth"
+import { getUser, logout } from "../../services/auth"
 
 const staffLinks = [
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/exit", label: "Salida" },
   { to: "/history", label: "Historial" },
   { to: "/deliveries", label: "Paquetes" },
   { to: "/tenants", label: "Inquilinos" },
@@ -13,17 +14,16 @@ const staffLinks = [
 export function Header() {
   const location = useLocation()
   const user = getUser()
-  const isSecurity = user?.role === "security"
 
-  const visibleLinks = isSecurity
-    ? staffLinks.filter((l) => l.to === "/dashboard" || l.to === "/history")
+  const visibleLinks = user?.role === "security"
+    ? staffLinks.filter((l) => l.to === "/dashboard" || l.to === "/exit" || l.to === "/history")
     : staffLinks
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
-          <Link to={isSecurity ? "/dashboard" : "/dashboard"} className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink hover:opacity-80 transition-opacity" aria-label="Ir al inicio">
+          <Link to="/dashboard" className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink hover:opacity-80 transition-opacity" aria-label="Ir al inicio">
             <div className="w-32 h-10 sm:w-40 sm:h-12 flex items-center justify-center flex-shrink-0">
               <img
                 alt="Logo de Torre MIND"
@@ -51,14 +51,10 @@ export function Header() {
             ))}
           </nav>
           <nav className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0" aria-label="Acciones rápidas">
-            {!isSecurity && (
-              <Link to="/exit">
-                <Button variant="outline" size="sm">
-                  <span className="hidden sm:inline">Salida</span>
-                  <span className="sm:hidden">Salida</span>
-                </Button>
-              </Link>
-            )}
+            <Button variant="outline" size="sm" onClick={logout}>
+              <span className="hidden sm:inline">Cerrar sesión</span>
+              <span className="sm:hidden">Salir</span>
+            </Button>
             {user?.role === "admin" && (
               <Link to="/admin-page-mind">
                 <Button variant="outline" size="sm">
