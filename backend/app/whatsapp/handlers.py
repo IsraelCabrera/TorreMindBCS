@@ -40,15 +40,19 @@ async def notify_host(
     db: AsyncSession,
     visit: VisitRecord,
 ):
-    if not visit.tenant_id:
-        return
-
-    result = await db.execute(
-        select(TenantContact)
-        .where(TenantContact.tenant_id == visit.tenant_id, TenantContact.is_primary == True)
-        .limit(1)
-    )
-    contact = result.scalar_one_or_none()
+    contact = None
+    if visit.tenant_contact_id:
+        result = await db.execute(
+            select(TenantContact).where(TenantContact.id == visit.tenant_contact_id).limit(1)
+        )
+        contact = result.scalar_one_or_none()
+    if not contact and visit.tenant_id:
+        result = await db.execute(
+            select(TenantContact)
+            .where(TenantContact.tenant_id == visit.tenant_id, TenantContact.is_primary == True)
+            .limit(1)
+        )
+        contact = result.scalar_one_or_none()
     if not contact or not contact.phone:
         return
 

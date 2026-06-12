@@ -10,10 +10,12 @@ from sqlalchemy.orm import selectinload
 from app.api.deps import get_db_session
 from app.core.rate_limiter import check_rate_limit
 from app.models.tenant import Tenant
+from app.models.tenant_contact import TenantContact
 from app.models.user import User
 from app.models.visitor import Visitor
 from app.models.visit_record import VisitRecord
 from app.websocket.manager import emit_visit_update
+from app.whatsapp.handlers import notify_host
 
 router = APIRouter()
 
@@ -117,6 +119,22 @@ async def self_register_public(
 
     db.add(visit)
     await db.commit()
+
+    host_name_raw = body.host_name
+    if host_name_raw and host_name_raw.strip():
+        result = await db.execute(
+            select(TenantContact).where(
+                TenantContact.name.ilike(f"%{host_name_raw.strip()}%")
+            ).limit(1)
+        )
+        matched = result.scalar_one_or_none()
+        if matched:
+            visit.tenant_id = matched.tenant_id
+            visit.tenant_contact_id = matched.id
+            visit.host_name = matched.name
+            await db.commit()
+            await notify_host(db, visit)
+
     await db.refresh(visit, ["visitor", "tenant"])
 
     await emit_visit_update("visit:created", {
