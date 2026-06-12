@@ -7,7 +7,8 @@ from sqlalchemy import select, desc, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_db_session, staff_or_admin
+from app.api.deps import get_db_session, staff_or_admin, any_authenticated_user
+from app.core.audit import log_audit
 from app.models.visitor import Visitor
 from app.models.visit_record import VisitRecord
 from app.models.tenant_contact import TenantContact
@@ -86,6 +87,10 @@ async def check_in(
         visit.tenant_id = uuid.UUID(body.tenant_id)
 
     db.add(visit)
+    await db.flush()
+    await log_audit(db, user["id"], "check_in", "visit", str(visit.id),
+                    details={"visitor_name": visitor.name, "visitor_type": body.visitor_type,
+                             "tenant_id": body.tenant_id, "host_name": body.host_name})
     await db.commit()
     await db.refresh(visit, ["visitor", "tenant"])
 
@@ -118,7 +123,7 @@ async def check_in(
 @router.get("/active")
 async def active_visits(
     db: AsyncSession = Depends(get_db_session),
-    user: dict = Depends(staff_or_admin),
+    user: dict = Depends(any_authenticated_user),
 ):
     stmt = (
         select(VisitRecord)
@@ -153,7 +158,7 @@ async def visit_history(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db_session),
-    user: dict = Depends(staff_or_admin),
+    user: dict = Depends(any_authenticated_user),
 ):
     stmt = select(VisitRecord).options(selectinload(VisitRecord.visitor), selectinload(VisitRecord.tenant))
     conditions = []
@@ -196,6 +201,7 @@ async def check_out(
         raise HTTPException(status_code=404)
     visit.status = "checked_out"
     visit.check_out_at = datetime.now(timezone.utc)
+    await log_audit(db, user["id"], "check_out", "visit", str(visit_id))
     await db.commit()
     await emit_visit_update("visit:updated", {"id": str(visit.id), "status": "checked_out"})
     return {"status": "checked_out"}
@@ -215,6 +221,7 @@ async def update_visit(
     for key, val in body.items():
         if hasattr(visit, key):
             setattr(visit, key, val)
+    await log_audit(db, user["id"], "update", "visit", str(visit_id), details=body)
     await db.commit()
     await emit_visit_update("visit:updated", {"id": str(visit.id), "status": visit.status})
     return {"status": "updated"}
@@ -232,6 +239,7 @@ async def escalate_visit(
         raise HTTPException(status_code=404)
     visit.status = "escalated"
     visit.escalation_state = "staff_triggered"
+    await log_audit(db, user["id"], "escalate", "visit", str(visit_id))
     await db.commit()
     await emit_visit_update("visit:updated", {"id": str(visit.id), "status": "escalated"})
     return {"status": "escalated"}
@@ -247,6 +255,8 @@ async def notify_retry(
     visit = result.scalar_one_or_none()
     if not visit:
         raise HTTPException(status_code=404)
+    await log_audit(db, user["id"], "notify_retry", "visit", str(visit_id))
+    await db.commit()
     return {"status": "notification_resent"}
 
 

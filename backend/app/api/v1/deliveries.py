@@ -7,6 +7,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session, staff_or_admin
+from app.core.audit import log_audit
 from app.models.delivery import DeliveryRecord
 from app.models.tenant import Tenant
 from app.models.tenant_contact import TenantContact
@@ -74,6 +75,9 @@ async def create_delivery(
     if body.tenant_id:
         delivery.tenant_id = uuid.UUID(body.tenant_id)
     db.add(delivery)
+    await db.flush()
+    await log_audit(db, user["id"], "create", "delivery", str(delivery.id),
+                    details={"courier": body.courier, "recipient_name": body.recipient_name})
     await db.commit()
     await db.refresh(delivery)
     return DeliveryResponse(
@@ -99,7 +103,6 @@ async def notify_delivery(
 
     phone = delivery.recipient_phone
     if not phone:
-        # Fallback: look up from tenant contacts by recipient name
         contact_result = await db.execute(
             select(TenantContact).where(TenantContact.name == delivery.recipient_name,
                                          TenantContact.phone.isnot(None)).limit(1)
@@ -114,6 +117,8 @@ async def notify_delivery(
 
     await notify_delivery_recipient(db, delivery.courier, delivery.recipient_name, delivery.guide_number, phone, delivery.id)
     delivery.notification_sent = True
+    await log_audit(db, user["id"], "notify", "delivery", str(delivery_id),
+                    details={"phone": phone, "recipient_name": delivery.recipient_name})
     await db.commit()
     return {"status": "notification_sent"}
 
@@ -144,5 +149,7 @@ async def mark_collected(
         await notify_delivery_collected(db, delivery.courier, delivery.recipient_name,
                                          delivery.guide_number, phone, delivery.id)
 
+    await log_audit(db, user["id"], "collect", "delivery", str(delivery_id),
+                    details={"recipient_name": delivery.recipient_name})
     await db.commit()
     return {"status": "collected"}

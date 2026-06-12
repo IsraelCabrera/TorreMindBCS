@@ -2,6 +2,37 @@ import pytest
 
 
 @pytest.mark.asyncio
+async def test_active_visits_security(client, security_headers):
+    resp = await client.get("/api/v1/visits/active", headers=security_headers)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_visit_history_security(client, security_headers):
+    resp = await client.get("/api/v1/visits/history", headers=security_headers)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_check_in_forbidden_security(client, security_headers):
+    resp = await client.post("/api/v1/visits/check-in", json={
+        "visitor_name": "Security Test",
+    }, headers=security_headers)
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_check_out_forbidden_security(client, security_headers):
+    resp = await client.post(
+        "/api/v1/visits/00000000-0000-0000-0000-000000000000/check-out",
+        headers=security_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_check_in_new_visitor(client, staff_headers, test_tenant_id):
     resp = await client.post("/api/v1/visits/check-in", json={
         "visitor_name": "Carlos López",

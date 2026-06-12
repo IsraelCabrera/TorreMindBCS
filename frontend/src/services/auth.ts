@@ -7,10 +7,24 @@ export interface User {
   role: string
 }
 
-let currentUser: User | null = null
+const USER_KEY = "vlms_current_user"
+
+let currentUser: User | null = (() => {
+  try {
+    const stored = localStorage.getItem(USER_KEY)
+    return stored ? (JSON.parse(stored) as User) : null
+  } catch {
+    return null
+  }
+})()
 
 export function setUser(user: User | null) {
   currentUser = user
+  if (user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user))
+  } else {
+    localStorage.removeItem(USER_KEY)
+  }
 }
 
 export function getUser(): User | null {

@@ -16,3 +16,7 @@ def admin_only(user: dict = Depends(require_role("admin"))):
 
 def staff_or_admin(user: dict = Depends(require_role("lobby_staff"))):
     return user
+
+
+def any_authenticated_user(user: dict = Depends(require_role("security"))):
+    return user

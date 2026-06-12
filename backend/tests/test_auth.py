@@ -56,6 +56,14 @@ async def test_rbac_staff_can_read_visitors(client, staff_headers):
 
 
 @pytest.mark.asyncio
-async def test_rbac_security_cannot_read_visitors(client, security_headers):
+async def test_rbac_security_can_read_visitors(client, security_headers):
     resp = await client.get("/api/v1/visitors", headers=security_headers)
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_rbac_security_cannot_create_visitor(client, security_headers):
+    resp = await client.post("/api/v1/visitors", json={
+        "name": "Unauthorized",
+    }, headers=security_headers)
     assert resp.status_code == 403

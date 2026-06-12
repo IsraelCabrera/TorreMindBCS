@@ -8,7 +8,7 @@ export function SelfRegistrationLayout() {
       </a>
       <main
         id="main-content"
-        className="flex-1 flex flex-col"
+        className="flex-1 flex flex-col min-h-0"
         role="main"
         aria-label="Auto registro de visitantes"
       >

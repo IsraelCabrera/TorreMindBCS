@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_db_session, staff_or_admin, admin_only
+from app.core.audit import log_audit
 from app.models.tenant import Tenant
 from app.models.tenant_contact import TenantContact
 
@@ -92,6 +93,9 @@ async def create_tenant(
         notes=body.notes,
     )
     db.add(tenant)
+    await db.flush()
+    await log_audit(db, user["id"], "create", "tenant", str(tenant.id),
+                    details={"name": body.name, "unit": body.unit})
     await db.commit()
     await db.refresh(tenant)
     return TenantResponse(id=str(tenant.id), name=tenant.name, unit=tenant.unit, floor=tenant.floor,
@@ -133,8 +137,11 @@ async def update_tenant(
     tenant = result.scalar_one_or_none()
     if not tenant:
         raise HTTPException(status_code=404)
+    before = {key: getattr(tenant, key) for key in body.model_dump(exclude_none=True)}
     for key, val in body.model_dump(exclude_none=True).items():
         setattr(tenant, key, val)
+    await log_audit(db, user["id"], "update", "tenant", str(tenant_id),
+                    details={"before": before, "after": body.model_dump(exclude_none=True)})
     await db.commit()
     return {"status": "updated"}
 
@@ -173,6 +180,9 @@ async def create_contact(
         notification_channels=body.notification_channels or {"whatsapp": True, "sms": False, "email": False},
     )
     db.add(contact)
+    await db.flush()
+    await log_audit(db, user["id"], "create", "tenant_contact", str(contact.id),
+                    details={"tenant_id": str(tenant_id), "name": contact.name})
     await db.commit()
     await db.refresh(contact)
     return ContactResponse(id=str(contact.id), name=contact.name, phone=contact.phone,
@@ -195,8 +205,27 @@ async def update_contact(
         raise HTTPException(status_code=404)
     for key, val in body.model_dump(exclude_none=True).items():
         setattr(contact, key, val)
+    await log_audit(db, user["id"], "update", "tenant_contact", str(contact_id),
+                    details={"tenant_id": str(tenant_id)})
     await db.commit()
     return {"status": "updated"}
+
+
+@router.delete("/{tenant_id}")
+async def delete_tenant(
+    tenant_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+    user: dict = Depends(admin_only),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active == True))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404)
+    tenant.is_active = False
+    await log_audit(db, user["id"], "delete", "tenant", str(tenant_id),
+                    details={"name": tenant.name, "unit": tenant.unit})
+    await db.commit()
+    return {"status": "deleted"}
 
 
 @router.delete("/{tenant_id}/contacts/{contact_id}")
@@ -210,6 +239,8 @@ async def delete_contact(
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404)
+    await log_audit(db, user["id"], "delete", "tenant_contact", str(contact_id),
+                    details={"tenant_id": str(tenant_id), "name": contact.name})
     await db.delete(contact)
     await db.commit()
     return {"status": "deleted"}

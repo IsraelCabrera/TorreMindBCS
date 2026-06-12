@@ -1,9 +1,15 @@
 const API_BASE = "/api/v1"
+const TOKEN_KEY = "vlms_access_token"
 
-let accessToken: string | null = null
+let accessToken: string | null = localStorage.getItem(TOKEN_KEY)
 
 export function setToken(token: string | null) {
   accessToken = token
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token)
+  } else {
+    localStorage.removeItem(TOKEN_KEY)
+  }
 }
 
 export function getToken() {
@@ -19,10 +25,10 @@ async function request(path: string, options: RequestInit = {}) {
     headers["Authorization"] = `Bearer ${accessToken}`
   }
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
-  if (res.status === 401) {
-    accessToken = null
-    window.location.href = "/admin"
-    throw new Error("Unauthorized")
+  if (res.status === 401 && accessToken) {
+    setToken(null)
+    window.location.href = "/admin-page-mind"
+    throw new Error("Sesión expirada")
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }))

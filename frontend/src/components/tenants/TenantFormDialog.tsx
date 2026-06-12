@@ -5,25 +5,37 @@ import { api } from "../../services/api"
 
 interface ContactForm {
   name: string
-  phone: string
-  email: string
+  phone: string | null
+  email: string | null
   is_primary: boolean
+}
+
+interface TenantData {
+  id: string
+  name: string
+  unit: string | null
+  floor: number | null
+  primary_phone: string | null
+  primary_email: string | null
+  contacts: ContactForm[]
 }
 
 interface Props {
   onClose: () => void
   onSuccess: () => void
+  tenant?: TenantData | null
 }
 
-export function TenantFormDialog({ onClose, onSuccess }: Props) {
-  const [name, setName] = useState("")
-  const [unit, setUnit] = useState("")
-  const [floor, setFloor] = useState("")
-  const [primaryPhone, setPrimaryPhone] = useState("")
-  const [primaryEmail, setPrimaryEmail] = useState("")
-  const [contacts, setContacts] = useState<ContactForm[]>([])
+export function TenantFormDialog({ onClose, onSuccess, tenant }: Props) {
+  const [name, setName] = useState(tenant?.name ?? "")
+  const [unit, setUnit] = useState(tenant?.unit ?? "")
+  const [floor, setFloor] = useState(tenant?.floor?.toString() ?? "")
+  const [primaryPhone, setPrimaryPhone] = useState(tenant?.primary_phone ?? "")
+  const [primaryEmail, setPrimaryEmail] = useState(tenant?.primary_email ?? "")
+  const [contacts, setContacts] = useState<ContactForm[]>(tenant?.contacts ?? [])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const isEdit = !!tenant
 
   const addContact = () => {
     setContacts([...contacts, { name: "", phone: "", email: "", is_primary: contacts.length === 0 }])
@@ -48,26 +60,31 @@ export function TenantFormDialog({ onClose, onSuccess }: Props) {
     setSaving(true)
     setError("")
     try {
-      const tenant = await api.post("/tenants", {
+      const body = {
         name: name.trim(),
         unit: unit.trim() || null,
         floor: floor ? Number(floor) : null,
         primary_phone: primaryPhone.trim() || null,
         primary_email: primaryEmail.trim() || null,
-      })
-      for (const c of contacts) {
-        if (c.name.trim()) {
-          await api.post(`/tenants/${tenant.id}/contacts`, {
-            name: c.name.trim(),
-            phone: c.phone.trim() || null,
-            email: c.email.trim() || null,
-            is_primary: c.is_primary,
-          })
+      }
+      if (isEdit) {
+        await api.put(`/tenants/${tenant!.id}`, body)
+      } else {
+        const created = await api.post("/tenants", body)
+        for (const c of contacts) {
+          if (c.name.trim()) {
+            await api.post(`/tenants/${created.id}/contacts`, {
+              name: c.name.trim(),
+              phone: c.phone?.trim() || null,
+              email: c.email?.trim() || null,
+              is_primary: c.is_primary,
+            })
+          }
         }
       }
       onSuccess()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al crear inquilino")
+      setError(err instanceof Error ? err.message : `Error al ${isEdit ? "actualizar" : "crear"} inquilino`)
     }
     setSaving(false)
   }
@@ -77,7 +94,7 @@ export function TenantFormDialog({ onClose, onSuccess }: Props) {
       <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <CardContent className="space-y-5 p-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-primary">Nuevo Inquilino</h3>
+            <h3 className="text-lg font-semibold text-primary">{isEdit ? "Editar Inquilino" : "Nuevo Inquilino"}</h3>
             <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
           </div>
 
@@ -134,12 +151,12 @@ export function TenantFormDialog({ onClose, onSuccess }: Props) {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label htmlFor={`contact-phone-${i}`} className="block text-xs text-muted-foreground mb-0.5">Teléfono</label>
-                    <input id={`contact-phone-${i}`} value={c.phone} onChange={(e) => updateContact(i, "phone", e.target.value)}
+                    <input id={`contact-phone-${i}`} value={c.phone ?? ""} onChange={(e) => updateContact(i, "phone", e.target.value)}
                       className="w-full h-8 rounded border border-border bg-card px-2 text-sm outline-none focus:border-ring" />
                   </div>
                   <div>
                     <label htmlFor={`contact-email-${i}`} className="block text-xs text-muted-foreground mb-0.5">Email</label>
-                    <input id={`contact-email-${i}`} value={c.email} onChange={(e) => updateContact(i, "email", e.target.value)}
+                    <input id={`contact-email-${i}`} value={c.email ?? ""} onChange={(e) => updateContact(i, "email", e.target.value)}
                       className="w-full h-8 rounded border border-border bg-card px-2 text-sm outline-none focus:border-ring" />
                   </div>
                 </div>
@@ -156,7 +173,7 @@ export function TenantFormDialog({ onClose, onSuccess }: Props) {
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
             <Button onClick={submit} disabled={saving || !name.trim()} className="flex-1">
-              {saving ? "Creando..." : "Crear inquilino"}
+              {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear inquilino"}
             </Button>
           </div>
         </CardContent>

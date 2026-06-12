@@ -75,10 +75,15 @@ async def self_register_public(
     if not body.name:
         raise HTTPException(status_code=422, detail="El nombre es obligatorio")
 
-    result = await db.execute(
-        select(Visitor).where(Visitor.phone == body.phone) if body.phone
-        else select(Visitor).where(Visitor.name == body.name, Visitor.phone.is_(None))
-    )
+    conditions = [Visitor.is_active == True]
+    if body.phone:
+        conditions.append(Visitor.phone == body.phone)
+    elif body.name:
+        conditions.append(Visitor.name == body.name)
+        conditions.append(Visitor.phone.is_(None))
+    else:
+        raise HTTPException(status_code=422, detail="El nombre es obligatorio")
+    result = await db.execute(select(Visitor).where(*conditions).limit(1))
     visitor = result.scalar_one_or_none()
 
     if not visitor:

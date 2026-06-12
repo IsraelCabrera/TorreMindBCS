@@ -6,7 +6,8 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.deps import get_db_session, staff_or_admin
+from app.api.deps import get_db_session, staff_or_admin, any_authenticated_user
+from app.core.audit import log_audit
 from app.models.visitor import Visitor
 from app.models.visit_record import VisitRecord
 from app.models.tenant import Tenant
@@ -62,7 +63,7 @@ async def _get_latest_visits(db: AsyncSession, visitor_ids: list[uuid.UUID]) -> 
 async def list_visitors(
     q: str | None = Query(None),
     db: AsyncSession = Depends(get_db_session),
-    user: dict = Depends(staff_or_admin),
+    user: dict = Depends(any_authenticated_user),
 ):
     stmt = select(Visitor).where(Visitor.is_active == True)
     if q:
@@ -98,6 +99,9 @@ async def create_visitor(
 ):
     visitor = Visitor(name=body.name, phone=body.phone, email=body.email, company=body.company, notes=body.notes)
     db.add(visitor)
+    await db.flush()
+    await log_audit(db, user["id"], "create", "visitor", str(visitor.id),
+                    details={"name": body.name, "phone": body.phone, "company": body.company})
     await db.commit()
     await db.refresh(visitor)
     return VisitorResponse(
@@ -111,7 +115,7 @@ async def create_visitor(
 async def get_visitor(
     visitor_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
-    user: dict = Depends(staff_or_admin),
+    user: dict = Depends(any_authenticated_user),
 ):
     result = await db.execute(select(Visitor).where(Visitor.id == visitor_id, Visitor.is_active == True))
     visitor = result.scalar_one_or_none()
@@ -140,6 +144,8 @@ async def update_visitor(
     visitor.email = body.email
     visitor.company = body.company
     visitor.notes = body.notes
+    await log_audit(db, user["id"], "update", "visitor", str(visitor_id),
+                    details={"name": body.name, "phone": body.phone, "company": body.company})
     await db.commit()
     await db.refresh(visitor)
     return VisitorResponse(

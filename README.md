@@ -94,7 +94,112 @@ The mockup chat UI at **http://localhost:9090/** lets you:
 
 ---
 
-## Seeded Users
+## Kiosk Setup (Raspberry Pi + Touchscreen)
+
+Instructions for setting up the self-registration kiosk on a 10.1" touchscreen running on a Raspberry Pi.
+
+### Hardware Requirements
+
+| Item | Spec |
+|---|---|
+| Raspberry Pi | Pi 4 (2 GB+) or Pi 5 |
+| SD Card | 32 GB+ (fast, A2 rated) |
+| Touchscreen | 10.1" HDMI, 1024×600 (landscape) |
+| Power | 5V/3A USB-C (official Pi PSU) |
+| Network | Ethernet or Wi-Fi (stable connection required) |
+
+### Software Requirements
+
+| Tool | Purpose |
+|---|---|
+| Raspberry Pi OS Lite (64-bit) | Base OS — no desktop needed, runs directly in Chromium |
+| Chromium | Kiosk browser (`chromium-browser`) |
+| unclutter | Hides mouse cursor |
+| xserver-xorg | Lightweight X session for Chromium |
+
+### Install Dependencies
+
+```bash
+sudo apt update && sudo apt install -y \
+  chromium-browser \
+  unclutter \
+  xserver-xorg \
+  x11-xserver-utils \
+  matchbox-window-manager
+```
+
+### Autostart Script
+
+Create `/home/pi/kiosk.sh`:
+
+```bash
+#!/bin/bash
+xset s off
+xset -dpms
+xset s noblank
+unclutter -idle 0.5 &
+
+matchbox-window-manager &
+
+chromium-browser \
+  --kiosk \
+  --start-fullscreen \
+  --disable-infobars \
+  --noerrdialogs \
+  --disable-session-crashed-bubble \
+  --disable-features=TranslateUI \
+  --no-first-run \
+  --fast \
+  --fast-start \
+  --disable-popup-blocking \
+  --disable-tab-switcher \
+  --disable-translate \
+  "http://<BACKEND_IP>:5173/kiosk"
+```
+
+Replace `<BACKEND_IP>` with the IP address of the machine running the backend + frontend.
+
+### systemd Service (Auto-start on Boot)
+
+Create `/etc/systemd/system/kiosk.service`:
+
+```ini
+[Unit]
+Description=VLMS Kiosk
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/home/pi/kiosk.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo chmod +x /home/pi/kiosk.sh
+sudo systemctl enable kiosk.service
+sudo systemctl start kiosk.service
+```
+
+The kiosk will now launch Chromium in fullscreen kiosk mode on boot, showing the `/kiosk` self-registration page. If Chromium crashes, systemd restarts it automatically after 5 seconds.
+
+### Testing the Kiosk Page
+
+While developing, access the kiosk page at **http://localhost:5173/kiosk** from any browser. It includes:
+
+- On-screen QWERTY keyboard with Spanish characters (ñ, accents)
+- Numeric keypad for the phone field (digits, +, -, space)
+- 2-minute idle timeout — resets the form automatically
+- 15-second auto-return after successful registration
+- Large fonts and touch targets optimized for elderly users
+
+---
 
 After running `scripts.seed`:
 
@@ -144,7 +249,7 @@ uv run alembic revision --autogenerate -m "description"
 
 ```bash
 cd backend
-uv run pytest -v                   # 69 tests
+uv run pytest -v                   # 86 tests
 ```
 
 ```bash
@@ -162,16 +267,16 @@ VLMSControl/
 ├── backend/          # FastAPI app (Python)
 │   ├── app/
 │   │   ├── api/      # REST routes (v1)
-│   │   ├── core/     # auth, config, metrics
-│   │   ├── models/   # SQLAlchemy models (10)
+│   │   ├── core/     # auth, config, metrics, audit
+│   │   ├── models/   # SQLAlchemy models (11)
 │   │   └── whatsapp/ # Meta Cloud API client + webhook
 │   ├── alembic/      # DB migrations
 │   ├── scripts/      # seed.py
-│   └── tests/        # 69 tests
+│   └── tests/        # 86 tests
 ├── frontend/         # React + Vite + TypeScript
 │   ├── src/
-│   │   ├── components/  # UI primitives + home panels
-│   │   ├── pages/       # Dashboard, History, Deliveries, etc.
+│   │   ├── components/  # UI primitives, home panels, kiosk keyboard
+│   │   ├── pages/       # Dashboard, History, Deliveries, Kiosk, etc.
 │   │   ├── hooks/       # useSocket (Socket.IO)
 │   │   └── services/    # API client with JWT
 │   └── package.json

@@ -101,3 +101,19 @@ async def test_delete_contact(client, admin_headers, test_tenant_id):
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "deleted"
+
+
+@pytest.mark.asyncio
+async def test_delete_tenant(client, admin_headers, test_tenant_id):
+    resp = await client.delete(f"/api/v1/tenants/{test_tenant_id}", headers=admin_headers)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "deleted"
+
+    resp = await client.get(f"/api/v1/tenants/{test_tenant_id}", headers=admin_headers)
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_tenant_staff_forbidden(client, staff_headers, test_tenant_id):
+    resp = await client.delete(f"/api/v1/tenants/{test_tenant_id}", headers=staff_headers)
+    assert resp.status_code == 403

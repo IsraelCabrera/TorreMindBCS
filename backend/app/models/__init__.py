@@ -8,6 +8,7 @@ from app.models.notification_log import NotificationLog
 from app.models.whatsapp_session import WhatsAppSession
 from app.models.blocklist import BlocklistEntry
 from app.models.metric_log import MetricLog
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "User",
@@ -20,4 +21,5 @@ __all__ = [
     "WhatsAppSession",
     "BlocklistEntry",
     "MetricLog",
+    "AuditLog",
 ]

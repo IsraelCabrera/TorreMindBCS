@@ -5,6 +5,7 @@ import { StatusBoard } from "../../components/home/StatusBoard"
 import { CheckInPanel } from "../../components/home/CheckInPanel"
 import { DeliveryPanel } from "../../components/home/DeliveryPanel"
 import type { VisitorResult } from "../../components/home/SearchBar"
+import { getUser } from "../../services/auth"
 
 type PanelMode = "checkin" | "delivery" | null
 
@@ -13,6 +14,8 @@ export function DashboardPage() {
   const [selectedVisitor, setSelectedVisitor] = useState<VisitorResult | null>(null)
   const [panelVisitorType, setPanelVisitorType] = useState<string | undefined>(undefined)
   const [refreshKey, setRefreshKey] = useState(0)
+  const user = getUser()
+  const isSecurity = user?.role === "security"
 
   const closePanel = () => {
     setPanel(null)
@@ -58,19 +61,19 @@ export function DashboardPage() {
             Panel de Recepción — MIND
           </h2>
           <p className="text-sm text-muted-foreground">
-            Búsqueda rápida · Registro en segundos
+            {isSecurity ? "Monitoreo de visitantes en tiempo real" : "Búsqueda rápida · Registro en segundos"}
           </p>
         </div>
 
         <SearchBar
-          onSelectVisitor={handleSelectVisitor}
-          onNewVisitor={handleNewVisitor}
+          onSelectVisitor={isSecurity ? () => {} : handleSelectVisitor}
+          onNewVisitor={isSecurity ? () => {} : handleNewVisitor}
         />
 
-        <QuickActions onAction={handleAction} />
+        {!isSecurity && <QuickActions onAction={handleAction} />}
 
         <div aria-live="polite" aria-atomic="true">
-          {panel === "checkin" && (
+          {panel === "checkin" && !isSecurity && (
             <CheckInPanel
               visitor={selectedVisitor}
               defaultType={panelVisitorType}
@@ -79,7 +82,7 @@ export function DashboardPage() {
             />
           )}
 
-          {panel === "delivery" && (
+          {panel === "delivery" && !isSecurity && (
             <DeliveryPanel
               onClose={closePanel}
               onSuccess={handleSuccess}
