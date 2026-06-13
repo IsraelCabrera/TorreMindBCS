@@ -148,6 +148,8 @@ PENDING ──► ESCALATED ──► STAFF_DECISION
 - [x] Escalation timer (ARQ background task) — `app/worker.py` + `app/worker_settings.py`
 - [x] Webhook wired into visit state machine (button_reply → approve/deny → Socket.IO event)
 - [x] Delivery notification endpoint (POST /deliveries/{id}/notify)
+- [x] `notify_host` supports specific contact via `tenant_contact_id` (falls back to primary contact)
+- [x] Self-registration (`POST /public/self-register`) does ILIKE fuzzy match on `host_name` against `TenantContact.name` and sends WhatsApp notification to matched contact
 - [ ] End-to-end WhatsApp flow test (blocked on Meta approval)
 
 ### Phase 1 Track B — Staff UI + Backend Logic ✅
@@ -228,7 +230,9 @@ PENDING ──► ESCALATED ──► STAFF_DECISION
  - Frontend 401 redirect fix: only redirects to `/admin-page-mind` when a token was present (expired session) — login failures now show the backend error message instead of a silent page reload.
  - Frontend edit user dialog: name, email, role, optional password change.
  - Frontend edit tenant dialog: extended `TenantFormDialog` with optional `tenant` prop — pre-fills form and uses PUT.
- - 12 new tests for RBAC security, tenant delete, user deactivate, audit log listing, visit mutations forbidden — 86 tests total.
+  - 12 new tests for RBAC security, tenant delete, user deactivate, audit log listing, visit mutations forbidden — 86 tests total.
+- `notify_host` now supports specific contact via `tenant_contact_id` — when set on a visit, sends WhatsApp to that specific contact instead of the primary contact.
+- Self-registration `POST /public/self-register` does ILIKE fuzzy match of `host_name` against `TenantContact.name`. If a match is found, links visit to that contact/tenant and calls `notify_host()` — previously no WhatsApp was sent from self-registration.
 
 ### In Progress
 - (none)
@@ -251,6 +255,7 @@ PENDING ──► ESCALATED ──► STAFF_DECISION
 - **401 redirect only when token existed** — failed login (no token) shows the backend error message; only expired sessions redirect to login.
 - **Edit user/tenant via shared dialog** — `TenantFormDialog` accepts optional `tenant` prop for edit mode; edit user dialog reuses same layout as create.
 - **`any_authenticated_user`** — security role reads visitors/visits but cannot mutate; replaces `require_role("security")` for read-only access.
+- **Self-registration WhatsApp** — backend does ILIKE fuzzy match on `host_name` against all `TenantContact.name` entries, no frontend changes needed; `notify_host` checks `tenant_contact_id` before falling back to primary contact.
 
 ## Next Steps
 1. Copy MIND logo/favicon assets to `frontend/public/`.
@@ -269,6 +274,7 @@ PENDING ──► ESCALATED ──► STAFF_DECISION
 - Backend builds/imports verified clean (`uv run python3 -c "from app... all OK"`). Frontend builds clean (`npx tsc -b && vite build`).
 - Test suite has 86 tests across 11 modules covering auth, RBAC, visitors, visits (check-in/check-out/history/escalate/notify-retry), tenants + contacts CRUD, deliveries (create/list/collect/notify), blocklist (list/add/check/delete), reports (daily/metrics), admin (list/create/update/password), audit log, RBAC security, and webhook (verification + inbound button_reply), public endpoints (self-register, honeypot). Tests use shared db_session per test with rollback teardown.
 - `notify_host` and `notify_delivery_recipient` will fail gracefully (no exception) when WhatsApp credentials are empty (invalid token response caught in try/except).
+- `self-register` endpoint now matches `host_name` against `TenantContact.name` via ILIKE — if matched, sets `tenant_id`, `tenant_contact_id`, and calls `notify_host()` after creating the visit.
 - `scripts/seed.py` is idempotent — deletes all data and recreates it from scratch. Must re-query all ORM objects after each `session.commit()` else they expire and raise `MissingGreenlet` on attribute access. Run with `uv run python -m scripts.seed` from `backend/`.
 - pytest-asyncio 1.4.0 uses `loop_scope` instead of the deprecated `event_loop` fixture. Configured via `asyncio_default_fixture_loop_scope = "session"` and `asyncio_default_test_loop_scope = "session"` in `pyproject.toml` to avoid asyncpg "different loop" errors.
 
