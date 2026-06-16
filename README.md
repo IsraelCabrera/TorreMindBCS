@@ -139,6 +139,15 @@ systemctl --user disable wayfire.service waybar.service 2>/dev/null || true
 loginctl enable-linger mind      # allows the user service to start at boot
 ```
 
+Open the file with a text editor (e.g., sudo nano /etc/xdg/labwc/autostart) and comment out or remove the line that launches the panel. 
+
+For Labwc (Current Default): Comment out the line containing wf-panel-pi or pcmanfm:
+
+```
+#/usr/bin/lwrespawn /usr/bin/wf-panel-pi &
+#/usr/bin/lwrespawn /usr/bin/pcmanfm --desktop --profile LXDE-pi &
+```
+
 ### Kiosk launch script (`/home/mind/kiosk-wayland.sh`)
 
 ```bash

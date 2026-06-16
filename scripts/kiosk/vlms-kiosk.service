@@ -1,0 +1,27 @@
+[Unit]
+Description=VLMS Kiosk (cage 0.2 + Chromium)
+# Do NOT pull in the graphical desktop – we want cage to own the seat
+After=seatd.service
+Wants=seatd.service
+
+[Service]
+Type=simple
+# Explicit interpreter avoids the 203/EXEC error
+ExecStart=/bin/bash /home/mind/kiosk-wayland.sh
+
+# Variables needed by cage / Chromium
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+# NOTE: do NOT set WAYLAND_DISPLAY – cage creates its own socket
+Environment=CAGE_XWAYLAND=0
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# ---- ExecStartPre that *actually works* ---------------------------------
+# Systemd cannot do command substitution, so we call a tiny helper script.
+ExecStartPre=/home/mind/kiosk-prepare-display.sh
+
+[Install]
+WantedBy=default.target
