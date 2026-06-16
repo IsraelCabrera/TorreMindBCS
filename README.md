@@ -130,22 +130,14 @@ sudo apt update && sudo apt install -y \
 
 ### Disable the default desktop compositor (Wayfire + Waybar)
 
-The default Pi OS image starts a Wayland desktop session (Wayfire) that owns the seat and shows a top bar. Because the kiosk must own the whole screen, stop and disable that session for the kiosk user (`mind` in the examples below).
+The default Pi OS image starts a Wayland desktop session (Wayfire + Waybar) that owns the seat and shows a top bar. Because the kiosk must own the whole screen, stop and disable that session for the kiosk user (`mind` in the examples below).
 
 ```bash
 # Run once as the kiosk user (mind)
 systemctl --user stop wayfire.service waybar.service 2>/dev/null || true
 systemctl --user disable wayfire.service waybar.service 2>/dev/null || true
+systemctl --user mask wayfire.service waybar.service 2>/dev/null || true
 loginctl enable-linger mind      # allows the user service to start at boot
-```
-
-Open the file with a text editor (e.g., sudo nano /etc/xdg/labwc/autostart) and comment out or remove the line that launches the panel. 
-
-For Labwc (Current Default): Comment out the line containing wf-panel-pi or pcmanfm:
-
-```
-#/usr/bin/lwrespawn /usr/bin/wf-panel-pi &
-#/usr/bin/lwrespawn /usr/bin/pcmanfm --desktop --profile LXDE-pi &
 ```
 
 ### Kiosk launch script (`/home/mind/kiosk-wayland.sh`)
@@ -156,48 +148,76 @@ For Labwc (Current Default): Comment out the line containing wf-panel-pi or pcma
 
 set -euo pipefail
 
-# 0️⃣  Clean a stale X11 socket that would make Xwayland fail later
+# 0️⃣  Clean a stray X11 socket
 rm -f /tmp/.X11-unix/X0
 pkill -x Xwayland 2>/dev/null || true
 
-# 1️⃣  Program a concrete mode on the enabled DRM connector
+# 1️⃣  Program the panel's native mode (also done by ExecStartPre, but harmless here)
 OUT="$(wlr-randr --json | jq -r '.[] | select(.enabled==true) | .name' | head -n1)"
 if [[ -z "$OUT" ]]; then
-  echo "❌  No enabled output – check 'wlr-randr --json'"
+  echo "❌  No enabled output – check 'wlr-randr --json'" >&2
   exit 1
 fi
-# Adjust the mode if your panel differs from 1920x1080@60 Hz
-wlr-randr --output "$OUT" --mode 1925120x2880@60Hz
+wlr-randr --output "$OUT" --mode 1024x600@59.852001Hz
 
-# 2️⃣  Environment cage needs
+# 2️⃣  Environment for cage – **do NOT set WAYLAND_DISPLAY**; let cage create its own socket
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-export WAYLAND_DISPLAY="wayland-0"
+# export WAYLAND_DISPLAY="wayland-0"   # REMOVED
 
 # 3️⃣  Chromium binary (Pi OS ships /usr/bin/chromium)
 CHROMIUM="/usr/bin/chromium"
 [[ -x "$CHROMIUM" ]] || CHROMIUM="/usr/bin/chromium-browser"
 
-# 4️⃣  Start cage (short options only – cage 0.2 does not understand long flags)
-#     -m last   → use the last (i.e. the only) enabled output
-#     -s        → allow VT switching on a bare seat
-#     --        → separator, everything after goes to Chromium
-exec cage -m last -s -- \
-  "$CHROMIUM" \
-    --kiosk \
-    --no-first-run \
-    --disable-infobars \
-    --disable-session-crashed-bubble \
-    --ozone-platform=wayland \
-    --enable-features=WaylandWindowDecorations \
-    --no-sandbox \
-    "https://<BACKEND_HOST>/kiosk"
+# 4️⃣  Start cage (short options only – cage 0.2) and Chromium
+cage_cmd=(
+  cage
+  -m last          # use the last (only) enabled output
+  -s               # allow VT switching on a bare seat
+  --               # separator – everything after goes to Chromium
+  "$CHROMIUM"
+    --kiosk
+    --no-first-run
+    --disable-infobars
+    --disable-session-crashed-bubble
+    --ozone-platform=wayland
+    --disable-features=WaylandWindowDecorations   # hide Chromium title-bar
+    --no-sandbox
+    "http://172.30.2.129:5173/kiosk"
+)
+
+exec "${cage_cmd[@]}"
 ```
 
-*Replace `<BACKEND_HOST>` with the hostname or IP of the machine that serves the frontend (e.g. `http://192.168.1.42:5173`).*  
+*Replace the URL with the hostname or IP of the machine that serves the frontend (e.g. `http://192.168.1.42:5173`).*  
 Make the script executable:
 
 ```bash
 chmod +x /home/mind/kiosk-wayland.sh
+```
+
+### Helper script for ExecStartPre (`/home/mind/kiosk-prepare-display.sh`)
+
+```bash
+#!/usr/bin/env bash
+# kiosk-prepare-display.sh – called by the systemd unit *before* cage starts
+# It programs the DRM connector with the panel’s native mode.
+
+set -euo pipefail
+
+OUT="$(wlr-randr --json | jq -r '.[] | select(.enabled==true) | .name' | head -n1)"
+if [[ -z "$OUT" ]]; then
+    echo "❌  No enabled output – check 'wlr-randr --json'" >&2
+    exit 1
+fi
+
+# 1024×600 @ 59.85 Hz – the exact mode of the 10.1″ panel
+wlr-randr --output "$OUT" --mode 1024x600@59.852001Hz
+```
+
+Make it executable:
+
+```bash
+chmod +x /home/mind/kiosk-prepare-display.sh
 ```
 
 ### systemd **user** service (auto‑start on boot)
@@ -206,18 +226,19 @@ Create `~/.config/systemd/user/vlms-kiosk.service`:
 
 ```ini
 [Unit]
-Description=VLMS Kiosk (cage 0.2 + Chromium)
-After=graphical-session.target wayland-session.target
-Wants=wayland-session.target
+Description=VLMS Kiosk (cage 0.2 + Chromium)
+# Do NOT pull in the graphical desktop – we want cage to own the seat
+After=seatd.service
+Wants=seatd.service
 
 [Service]
 Type=simple
-# explicit interpreter avoids the 203/EXEC error
+# Explicit interpreter avoids the 203/EXEC error
 ExecStart=/bin/bash /home/mind/kiosk-wayland.sh
 
-# cage / Chromium need these variables
+# Variables needed by cage / Chromium
 Environment=XDG_RUNTIME_DIR=/run/user/1000
-Environment=WAYLAND_DISPLAY=wayland-0
+# NOTE: do NOT set WAYLAND_DISPLAY – cage creates its own socket
 Environment=CAGE_XWAYLAND=0
 
 Restart=on-failure
@@ -225,8 +246,9 @@ RestartSec=5
 StandardOutput=journal
 StandardError=journal
 
-# Ensure the DRM connector has a mode before cage starts
-ExecStartPre=/usr/bin/wlr-randr --output "$(/usr/bin/wlr-randr --json | /usr/bin/jq -r '.[] | select(.enabled==true) | .name' | /usr/bin/head -n1)" --mode 5120x2880@60Hz
+# ---- ExecStartPre that *actually works* ---------------------------------
+# Systemd cannot do command substitution, so we call a tiny helper script.
+ExecStartPre=/home/mind/kiosk-prepare-display.sh
 
 [Install]
 WantedBy=default.target

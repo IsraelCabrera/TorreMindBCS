@@ -166,7 +166,7 @@ PENDING ──► ESCALATED ──► STAFF_DECISION
 - [x] Metrics decorator (`@track_metric`) — `app/core/metrics.py`
 - [x] Test suite (74 tests across 11 modules) — all passing with 0 warnings
 - [x] Kiosk self-registration page — `frontend/src/pages/kiosk/KioskPage.tsx` + `frontend/src/components/kiosk/VirtualKeyboard.tsx`
-- [x] Kiosk deployment on Raspberry Pi (Wayland): cage 0.2 launch script (`kiosk-wayland.sh`), `wlr-randr` mode setup, systemd **user** unit (`vlms-kiosk.service`), and disabling the default Wayfire desktop session.
+- [x] Kiosk deployment on Raspberry Pi (Wayland): cage 0.2 launch script (`kiosk-wayland.sh`), `wlr-randr` mode setup via helper (`kiosk-prepare-display.sh`), systemd **user** unit (`vlms-kiosk.service`) with ExecStartPre, disabling the default Wayfire + Waybar desktop session, and Chromium flags `--disable-features=WaylandWindowDecorations` to remove title‑bar.
 - [x] Route changes: `/` → redirect to `/register`, `/dashboard` for staff, `/admin-page-mind` for admin
 
 ### Phase 2 — Admin & RBAC ✅
