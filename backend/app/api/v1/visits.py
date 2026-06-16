@@ -127,7 +127,7 @@ async def active_visits(
 ):
     stmt = (
         select(VisitRecord)
-        .where(VisitRecord.check_out_at.is_(None), VisitRecord.status.in_(["pending", "approved", "escalated", "staff_decision"]))
+        .where(VisitRecord.check_out_at.is_(None), VisitRecord.status.in_(["pending", "approved", "escalated", "staff_decision", "denied"]))
         .options(selectinload(VisitRecord.visitor), selectinload(VisitRecord.tenant))
         .order_by(desc(VisitRecord.check_in_at))
     )
@@ -202,6 +202,26 @@ async def check_out(
     visit.status = "checked_out"
     visit.check_out_at = datetime.now(timezone.utc)
     await log_audit(db, user["id"], "check_out", "visit", str(visit_id))
+    await db.commit()
+    await emit_visit_update("visit:updated", {"id": str(visit.id), "status": "checked_out"})
+    return {"status": "checked_out"}
+
+
+@router.post("/{visit_id}/confirm-denial")
+async def confirm_denial(
+    visit_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+    user: dict = Depends(staff_or_admin),
+):
+    result = await db.execute(select(VisitRecord).where(VisitRecord.id == visit_id))
+    visit = result.scalar_one_or_none()
+    if not visit:
+        raise HTTPException(status_code=404)
+    if visit.status != "denied":
+        raise HTTPException(status_code=400, detail="Solo se puede confirmar visitas con estado 'denied'")
+    visit.status = "checked_out"
+    visit.check_out_at = datetime.now(timezone.utc)
+    await log_audit(db, user["id"], "confirm_denial", "visit", str(visit_id))
     await db.commit()
     await emit_visit_update("visit:updated", {"id": str(visit.id), "status": "checked_out"})
     return {"status": "checked_out"}
