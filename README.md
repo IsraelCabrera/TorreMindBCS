@@ -94,109 +94,153 @@ The mockup chat UI at **http://localhost:9090/** lets you:
 
 ---
 
-## Kiosk Setup (Raspberry Pi + Touchscreen)
+## Kiosk Setup (Raspberry Pi + Touchscreen — Wayland)
 
-Instructions for setting up the self-registration kiosk on a 10.1" touchscreen running on a Raspberry Pi.
+Instructions for setting up the self‑registration kiosk on a 10.1" touchscreen running Raspberry Pi OS (64‑bit) with the **Wayland** compositor. The kiosk runs Chromium inside **cage 0.2** (a tiny Wayland kiosk compositor) and is managed by a **systemd user service** so it starts automatically on boot without an X server.
 
 ### Hardware Requirements
 
 | Item | Spec |
 |---|---|
-| Raspberry Pi | Pi 4 (2 GB+) or Pi 5 |
-| SD Card | 32 GB+ (fast, A2 rated) |
+| Raspberry Pi | Pi 4 (2 GB+) or Pi 5 |
+| SD Card | 32 GB+ (A2 rated) |
 | Touchscreen | 10.1" HDMI, 1024×600 (landscape) |
-| Power | 5V/3A USB-C (official Pi PSU) |
-| Network | Ethernet or Wi-Fi (stable connection required) |
+| Power | 5 V/3 A USB‑C (official Pi PSU) |
+| Network | Ethernet or stable Wi‑Fi |
 
 ### Software Requirements
 
 | Tool | Purpose |
 |---|---|
-| Raspberry Pi OS Lite (64-bit) | Base OS — no desktop needed, runs directly in Chromium |
-| Chromium | Kiosk browser (`chromium-browser`) |
-| unclutter | Hides mouse cursor |
-| xserver-xorg | Lightweight X session for Chromium |
+| Raspberry Pi OS Lite (64‑bit) | Minimal OS, no desktop environment |
+| `chromium` | Kiosk browser (package provides `/usr/bin/chromium`) |
+| `cage` (0.2) | Tiny Wayland kiosk compositor (pre‑installed on Pi OS) |
+| `wlr-randr` | Sets the DRM/KMS mode before cage starts |
+| `seatd` | Manages the seat for Wayland (installed by default) |
 
 ### Install Dependencies
 
 ```bash
 sudo apt update && sudo apt install -y \
-  chromium-browser \
-  unclutter \
-  xserver-xorg \
-  x11-xserver-utils \
-  matchbox-window-manager
+  chromium \
+  cage \
+  wlr-randr \
+  seatd
 ```
 
-### Autostart Script
+### Disable the default desktop compositor (Wayfire + Waybar)
 
-Create `/home/pi/kiosk.sh`:
+The default Pi OS image starts a Wayland desktop session (Wayfire) that owns the seat and shows a top bar. Because the kiosk must own the whole screen, stop and disable that session for the kiosk user (`mind` in the examples below).
 
 ```bash
-#!/bin/bash
-xset s off
-xset -dpms
-xset s noblank
-unclutter -idle 0.5 &
-
-matchbox-window-manager &
-
-chromium-browser \
-  --kiosk \
-  --start-fullscreen \
-  --disable-infobars \
-  --noerrdialogs \
-  --disable-session-crashed-bubble \
-  --disable-features=TranslateUI \
-  --no-first-run \
-  --fast \
-  --fast-start \
-  --disable-popup-blocking \
-  --disable-tab-switcher \
-  --disable-translate \
-  "http://<BACKEND_IP>:5173/kiosk"
+# Run once as the kiosk user (mind)
+systemctl --user stop wayfire.service waybar.service 2>/dev/null || true
+systemctl --user disable wayfire.service waybar.service 2>/dev/null || true
+loginctl enable-linger mind      # allows the user service to start at boot
 ```
 
-Replace `<BACKEND_IP>` with the IP address of the machine running the backend + frontend.
+### Kiosk launch script (`/home/mind/kiosk-wayland.sh`)
 
-### systemd Service (Auto-start on Boot)
+```bash
+#!/usr/bin/env bash
+# kiosk-wayland.sh – VLMS kiosk on Raspberry Pi (Wayland + cage 0.2)
 
-Create `/etc/systemd/system/kiosk.service`:
+set -euo pipefail
+
+# 0️⃣  Clean a stale X11 socket that would make Xwayland fail later
+rm -f /tmp/.X11-unix/X0
+pkill -x Xwayland 2>/dev/null || true
+
+# 1️⃣  Program a concrete mode on the enabled DRM connector
+OUT="$(wlr-randr --json | jq -r '.[] | select(.enabled==true) | .name' | head -n1)"
+if [[ -z "$OUT" ]]; then
+  echo "❌  No enabled output – check 'wlr-randr --json'"
+  exit 1
+fi
+# Adjust the mode if your panel differs from 1920x1080@60 Hz
+wlr-randr --output "$OUT" --mode 1925120x2880@60Hz
+
+# 2️⃣  Environment cage needs
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export WAYLAND_DISPLAY="wayland-0"
+
+# 3️⃣  Chromium binary (Pi OS ships /usr/bin/chromium)
+CHROMIUM="/usr/bin/chromium"
+[[ -x "$CHROMIUM" ]] || CHROMIUM="/usr/bin/chromium-browser"
+
+# 4️⃣  Start cage (short options only – cage 0.2 does not understand long flags)
+#     -m last   → use the last (i.e. the only) enabled output
+#     -s        → allow VT switching on a bare seat
+#     --        → separator, everything after goes to Chromium
+exec cage -m last -s -- \
+  "$CHROMIUM" \
+    --kiosk \
+    --no-first-run \
+    --disable-infobars \
+    --disable-session-crashed-bubble \
+    --ozone-platform=wayland \
+    --enable-features=WaylandWindowDecorations \
+    --no-sandbox \
+    "https://<BACKEND_HOST>/kiosk"
+```
+
+*Replace `<BACKEND_HOST>` with the hostname or IP of the machine that serves the frontend (e.g. `http://192.168.1.42:5173`).*  
+Make the script executable:
+
+```bash
+chmod +x /home/mind/kiosk-wayland.sh
+```
+
+### systemd **user** service (auto‑start on boot)
+
+Create `~/.config/systemd/user/vlms-kiosk.service`:
 
 ```ini
 [Unit]
-Description=VLMS Kiosk
-After=network.target
+Description=VLMS Kiosk (cage 0.2 + Chromium)
+After=graphical-session.target wayland-session.target
+Wants=wayland-session.target
 
 [Service]
 Type=simple
-User=pi
-ExecStart=/home/pi/kiosk.sh
+# explicit interpreter avoids the 203/EXEC error
+ExecStart=/bin/bash /home/mind/kiosk-wayland.sh
+
+# cage / Chromium need these variables
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=CAGE_XWAYLAND=0
+
 Restart=on-failure
 RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Ensure the DRM connector has a mode before cage starts
+ExecStartPre=/usr/bin/wlr-randr --output "$(/usr/bin/wlr-randr --json | /usr/bin/jq -r '.[] | select(.enabled==true) | .name' | /usr/bin/head -n1)" --mode 5120x2880@60Hz
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 ```
 
-Enable and start:
+Enable and start the user service:
 
 ```bash
-sudo chmod +x /home/pi/kiosk.sh
-sudo systemctl enable kiosk.service
-sudo systemctl start kiosk.service
+systemctl --user daemon-reload
+systemctl --user enable --now vlms-kiosk.service
+journalctl --user -u vlms-kiosk -f   # follow the log
 ```
 
-The kiosk will now launch Chromium in fullscreen kiosk mode on boot, showing the `/kiosk` self-registration page. If Chromium crashes, systemd restarts it automatically after 5 seconds.
+The kiosk now launches a full‑screen Chromium instance **without any panel or window decorations**. If Chromium crashes, systemd restarts it after 5 seconds.
 
 ### Testing the Kiosk Page
 
-While developing, access the kiosk page at **http://localhost:5173/kiosk** from any browser. It includes:
+During development you can still open the kiosk page at **http://localhost:5173/kiosk** from any browser. The page includes:
 
-- On-screen QWERTY keyboard with Spanish characters (ñ, accents)
-- Numeric keypad for the phone field (digits, +, -, space)
-- 2-minute idle timeout — resets the form automatically
-- 15-second auto-return after successful registration
+- On‑screen QWERTY keyboard with Spanish characters (ñ, accents)  
+- Numeric keypad for the phone field (digits, +, -, space)  
+- 2‑minute idle timeout — form resets automatically  
+- 15‑second auto‑return after successful registration  
 - Large fonts and touch targets optimized for elderly users
 
 ---
