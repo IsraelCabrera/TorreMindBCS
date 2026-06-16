@@ -112,31 +112,43 @@ export function VirtualKeyboard({
   }, [])
 
   if (numeric) {
+    const numericRows = [
+      ["1", "2", "3"],
+      ["4", "5", "6"],
+      ["7", "8", "9"],
+      ["+", "0", "-"],
+      ["⌫", "Espacio", "⏎"],
+    ] as const;
+
     return (
       <div className="w-full bg-[#1a1a2e] px-2 pt-2 pb-3 space-y-1 select-none shadow-2xl">
-        <div className="flex gap-1">
-          <KbdKey label="1" onPress={() => onChar("1")} disabled={disabled} />
-          <KbdKey label="2" onPress={() => onChar("2")} disabled={disabled} />
-          <KbdKey label="3" onPress={() => onChar("3")} disabled={disabled} />
-        </div>
-        <div className="flex gap-1">
-          <KbdKey label="4" onPress={() => onChar("4")} disabled={disabled} />
-          <KbdKey label="5" onPress={() => onChar("5")} disabled={disabled} />
-          <KbdKey label="6" onPress={() => onChar("6")} disabled={disabled} />
-        </div>
-        <div className="flex gap-1">
-          <KbdKey label="7" onPress={() => onChar("7")} disabled={disabled} />
-          <KbdKey label="8" onPress={() => onChar("8")} disabled={disabled} />
-          <KbdKey label="9" onPress={() => onChar("9")} disabled={disabled} />
-          <KbdKey label="⌫" onPress={onBackspace} variant="modifier" disabled={disabled} />
-        </div>
-        <div className="flex gap-1">
-          <KbdKey label="+" onPress={() => onChar("+")} variant="modifier" disabled={disabled} />
-          <KbdKey label="0" onPress={() => onChar("0")} disabled={disabled} />
-          <KbdKey label="-" onPress={() => onChar("-")} variant="modifier" disabled={disabled} />
-          <KbdKey label="Espacio" onPress={() => onChar(" ")} variant="modifier" wide disabled={disabled} />
-          <KbdKey label="⏎" onPress={onEnter} variant="modifier" disabled={disabled} />
-        </div>
+        {numericRows.map((row, ri) => (
+          <div key={ri} className="flex gap-1 justify-center">
+            {row.map((ch) => {
+              const isModifier = ["⌫", "Espacio", "⏎"].includes(ch);
+              const isWide = ch === "Espacio";
+
+              const onPress = (() => {
+                if (ch === "⌫") return onBackspace;
+                if (ch === "Espacio") return () => onChar(" ");
+                if (ch === "⏎") return onEnter;
+                return () => onChar(ch);
+              })();
+
+              return (
+                <KbdKey
+                  key={ch}
+                  label={ch}
+                  onPress={onPress}
+                  variant={isModifier ? "modifier" : undefined}
+                  wide={isWide}
+                  disabled={disabled}
+                />
+              );
+            })}
+          </div>
+        ))}
+
         <div className="flex gap-1 justify-center">
           <KbdKey label="Borrar" onPress={onClear} variant="modifier" disabled={disabled} />
         </div>
