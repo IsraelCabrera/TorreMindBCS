@@ -11,4 +11,4 @@ if [[ -z "$OUT" ]]; then
 fi
 
 # 1024×600 @ 59.85 Hz – the exact mode of the 10.1″ panel
-wlr-randr --output "$OUT" --mode 1024x600@59.852001Hz
+wlr-randr --output "$OUT" --mode 1024x600

@@ -21,7 +21,7 @@ async def schedule_escalation(visit_id: str, delay_seconds: int) -> None:
         await pool.aclose()
 
 
-async def escalate_visit(ctx: dict, visit_id: str) -> None:
+async def escalate_visit(ctx: dict, visit_id: str, _defer_seconds: int = 0) -> None:
     try:
         visit_uuid = uuid.UUID(visit_id)
     except ValueError:

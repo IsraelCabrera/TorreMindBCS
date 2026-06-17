@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     whatsapp_webhook_verify_token: str = "vlms-verify-token"
     host_timeout_seconds: int = 300
     auto_checkout_minutes: int = 480
+    whatsapp_auto_accept: bool = True
     environment: Literal["dev", "staging", "production"] = "dev"
     log_level: str = "DEBUG"
     log_dir: str = "logs"

@@ -1,5 +1,6 @@
 const API_BASE = "/api/v1"
 const TOKEN_KEY = "vlms_access_token"
+const REFRESH_TOKEN_KEY = "vlms_refresh_token"
 
 let accessToken: string | null = localStorage.getItem(TOKEN_KEY)
 
@@ -16,6 +17,36 @@ export function getToken() {
   return accessToken
 }
 
+export function setRefreshToken(token: string | null) {
+  if (token) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token)
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
+  }
+}
+
+function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return null
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    setToken(data.access_token)
+    return data.access_token
+  } catch {
+    return null
+  }
+}
+
 async function request(path: string, options: RequestInit = {}) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -24,11 +55,18 @@ async function request(path: string, options: RequestInit = {}) {
   if (accessToken) {
     headers["Authorization"] = `Bearer ${accessToken}`
   }
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  let res = await fetch(`${API_BASE}${path}`, { ...options, headers })
   if (res.status === 401 && accessToken) {
-    setToken(null)
-    window.location.href = "/admin-page-mind"
-    throw new Error("Sesión expirada")
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`
+      res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+    } else {
+      setToken(null)
+      setRefreshToken(null)
+      window.location.href = "/admin-page-mind"
+      throw new Error("Sesión expirada")
+    }
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }))

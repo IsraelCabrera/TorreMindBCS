@@ -1,4 +1,4 @@
-import { api, setToken } from "./api"
+import { api, setToken, setRefreshToken } from "./api"
 
 export interface User {
   id: string
@@ -38,6 +38,7 @@ export function isAdmin(): boolean {
 export async function login(email: string, password: string): Promise<User> {
   const data = await api.post("/auth/login", { email, password })
   setToken(data.access_token)
+  setRefreshToken(data.refresh_token)
   setUser(data.user)
   return data.user
 }
@@ -54,6 +55,7 @@ export async function fetchMe(): Promise<User | null> {
 
 export function logout() {
   setToken(null)
+  setRefreshToken(null)
   setUser(null)
   window.location.href = "/admin-page-mind"
 }

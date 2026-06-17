@@ -100,7 +100,13 @@ async def check_in(
         "status": visit.status,
     })
 
-    if visit.tenant_id:
+    whatsapp_disabled = not settings.whatsapp_phone_number_id or not settings.whatsapp_access_token
+    if whatsapp_disabled and settings.whatsapp_auto_accept:
+        visit.status = "approved"
+        visit.acknowledged_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(visit, ["visitor", "tenant"])
+    elif visit.tenant_id:
         await notify_host(db, visit)
         await schedule_escalation(str(visit.id), settings.host_timeout_seconds)
 

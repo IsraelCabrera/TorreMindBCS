@@ -25,7 +25,6 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import hash_password
 from app.database import engine
 from app.log import setup_logging
 from app.models import *  # noqa: F403 — ensure all models loaded for migrations
@@ -38,30 +37,9 @@ from app.models.delivery import DeliveryRecord
 from app.models.blocklist import BlocklistEntry
 from app.models.notification_log import NotificationLog
 from app.models.metric_log import MetricLog
+from app.seed_defaults import seed_default_users
 
 logger = setup_logging(name="seed", log_file="seed.log", level=logging.INFO)
-
-
-DEFAULT_USERS = [
-    {
-        "email": os.getenv("SEED_ADMIN_EMAIL", "admin@torremind.com"),
-        "password": os.getenv("SEED_ADMIN_PASSWORD", "Admin123!"),
-        "name": "Admin",
-        "role": "admin",
-    },
-    {
-        "email": os.getenv("SEED_STAFF_EMAIL", "staff@torremind.com"),
-        "password": os.getenv("SEED_STAFF_PASSWORD", "Staff123!"),
-        "name": "Staff",
-        "role": "lobby_staff",
-    },
-    {
-        "email": os.getenv("SEED_SECURITY_EMAIL", "security@torremind.com"),
-        "password": os.getenv("SEED_SECURITY_PASSWORD", "Security123!"),
-        "name": "Security",
-        "role": "security",
-    },
-]
 
 
 SAMPLE_VISITORS = [
@@ -218,37 +196,14 @@ async def seed():
     logger.info("Seeding database...")
 
     async with AsyncSession(engine) as session:
-        created_users = 0
-        skipped_users = 0
-        staff_user = None
-        admin_user = None
-
-        for u in DEFAULT_USERS:
-            result = await session.execute(select(User).where(User.email == u["email"]))
-            existing_user = result.scalar_one_or_none()
-            if existing_user:
-                logger.info("⏭ %s — already exists, skipping", u["email"])
-                skipped_users += 1
-                if existing_user.role == "lobby_staff":
-                    staff_user = existing_user
-                if existing_user.role == "admin":
-                    admin_user = existing_user
-                continue
-
-            user = User(
-                email=u["email"],
-                password_hash=hash_password(u["password"]),
-                name=u["name"],
-                role=u["role"],
-            )
-            session.add(user)
-            await session.flush()
-            if user.role == "lobby_staff":
-                staff_user = user
-            if user.role == "admin":
-                admin_user = user
-            created_users += 1
-            logger.info("Created %s (%s)", u["email"], u["role"])
+        await seed_default_users(session)
+        # Re-query after seed_default_users commits
+        staff_user = (await session.execute(
+            select(User).where(User.role == "lobby_staff").limit(1)
+        )).scalar_one_or_none()
+        admin_user = (await session.execute(
+            select(User).where(User.role == "admin").limit(1)
+        )).scalar_one_or_none()
 
         # Delete and recreate tenants to guarantee idempotency
         # Order matters: child tables first (FK constraints)
@@ -350,7 +305,7 @@ async def seed():
             await _get_or_create_blocklist(session, admin_user)
             await session.commit()
 
-        logger.info("Done. Users: %d created, %d skipped.", created_users, skipped_users)
+        logger.info("Done.")
 
     await engine.dispose()
 

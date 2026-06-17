@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.config import settings
 from app.core.auth import hash_password
+
+settings.whatsapp_auto_accept = False
 from app.database import get_db
 from app.main import app
 from app.models.base import Base

@@ -33,7 +33,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db_session)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     return LoginResponse(
         access_token=create_access_token(str(user.id), user.role),
-        refresh_token=create_refresh_token(str(user.id)),
+        refresh_token=create_refresh_token(str(user.id), user.role),
         user={"id": str(user.id), "email": user.email, "name": user.name, "role": user.role},
     )
 

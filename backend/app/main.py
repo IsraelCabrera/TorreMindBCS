@@ -8,9 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.database import engine
+from app.database import engine, async_session
 from app.log import setup_logging
 from app.models.base import Base
+from app.seed_defaults import seed_default_users
 from app.socketio_server import sio, sio_app
 
 logger = logging.getLogger("vlms")
@@ -25,6 +26,8 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Torre Mind VLMS")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with async_session() as db:
+        await seed_default_users(db)
     yield
     logger.info("Shutting down Torre Mind VLMS")
     await engine.dispose()

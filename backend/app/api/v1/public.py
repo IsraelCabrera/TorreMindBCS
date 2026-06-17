@@ -16,6 +16,7 @@ from app.models.visitor import Visitor
 from app.models.visit_record import VisitRecord
 from app.websocket.manager import emit_visit_update
 from app.whatsapp.handlers import notify_host
+from app.config import settings
 
 router = APIRouter()
 
@@ -120,6 +121,9 @@ async def self_register_public(
     db.add(visit)
     await db.commit()
 
+    whatsapp_disabled = not settings.whatsapp_phone_number_id or not settings.whatsapp_access_token
+    should_auto_accept = whatsapp_disabled and settings.whatsapp_auto_accept
+
     host_name_raw = body.host_name
     if host_name_raw and host_name_raw.strip():
         result = await db.execute(
@@ -133,7 +137,13 @@ async def self_register_public(
             visit.tenant_contact_id = matched.id
             visit.host_name = matched.name
             await db.commit()
-            await notify_host(db, visit)
+            if not should_auto_accept:
+                await notify_host(db, visit)
+
+    if should_auto_accept:
+        visit.status = "approved"
+        visit.acknowledged_at = datetime.now(timezone.utc)
+        await db.commit()
 
     await db.refresh(visit, ["visitor", "tenant"])
 
