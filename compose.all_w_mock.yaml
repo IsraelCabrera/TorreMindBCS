@@ -78,5 +78,14 @@ services:
       - ./frontend/package.json:/app/package.json
     command: npx vite --host 0.0.0.0
 
+  mockup:
+    build: ./mockup
+    ports:
+      - "9090:9090"
+    environment:
+      WHATSAPP_WEBHOOK_URL: http://backend:8000/webhooks/whatsapp
+    depends_on:
+      - backend
+
 volumes:
   pgdata:
