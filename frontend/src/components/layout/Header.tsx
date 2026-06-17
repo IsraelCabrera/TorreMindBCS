@@ -4,7 +4,6 @@ import { getUser, logout } from "../../services/auth"
 
 const staffLinks = [
   { to: "/dashboard", label: "Dashboard" },
-  { to: "/exit", label: "Salida" },
   { to: "/history", label: "Historial" },
   { to: "/deliveries", label: "Paquetes" },
   { to: "/tenants", label: "Inquilinos" },
@@ -16,7 +15,7 @@ export function Header() {
   const user = getUser()
 
   const visibleLinks = user?.role === "security"
-    ? staffLinks.filter((l) => l.to === "/dashboard" || l.to === "/exit" || l.to === "/history")
+    ? staffLinks.filter((l) => l.to === "/dashboard" || l.to === "/history")
     : staffLinks
 
   return (
