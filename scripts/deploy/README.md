@@ -79,8 +79,9 @@ ssh -i ~/.ssh/github-actions ubuntu@<SERVER_IP> "bash scripts/deploy/update.sh"
 
 ## Ngrok Notes
 
-- **Free plan**: URL changes on each restart. Run `curl -s http://localhost:4040/api/tunnels | python3 -c "import sys,json; print(json.load(sys.stdin)['tunnels'][0]['public_url'])"` to get the current URL. You'll need to update the WhatsApp webhook URL in Meta Dashboard after each restart.
-- **Paid plan**: Set `NGROK_DOMAIN=your-domain.ngrok.io` in `.env` for a fixed URL. The `--domain` flag will be passed to ngrok automatically (requires `NGROK_AUTHTOKEN`).
+- **Free static domain**: Reserve a free domain at https://dashboard.ngrok.com/cloud-edge/domains (e.g. `your-name.ngrok-free.app`). Set `NGROK_DOMAIN=your-name.ngrok-free.app` in `.env`. The `--domain` flag is passed automatically.
+- **Random URL (free without domain)**: URL changes on each restart. Run `curl -s http://localhost:4040/api/tunnels | python3 -c "import sys,json; print(json.load(sys.stdin)['tunnels'][0]['public_url'])"` to get the current URL. You'll need to update the WhatsApp webhook in Meta Dashboard after each restart.
+- **Custom domain (paid)**: Set `NGROK_DOMAIN=your-domain.com` in `.env`.
 
 ## HTTPS with Caddy
 
