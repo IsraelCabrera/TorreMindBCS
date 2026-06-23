@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="https://github.com/anomalyco/VLMSControl.git"
+REPO_URL="git@github.com:IsraelCabrera/TorreMindBCS.git"
 DEPLOY_DIR="/opt/vlms/VLMSControl"
 
 echo "=== VLMS Production Setup ==="

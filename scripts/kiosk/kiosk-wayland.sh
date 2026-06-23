@@ -33,7 +33,7 @@ cmd=(
     --no-sandbox
     --start-maximized
     --noerrdialogs
-    "http://172.30.2.129:5173/kiosk"
+    "http://172.30.2.24:5173/kiosk"
 )
 
 exec "${cmd[@]}"
