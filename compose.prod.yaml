@@ -4,7 +4,7 @@ services:
       context: ./frontend
     ports: []
     volumes: []
-    command: []
+    command: ["nginx", "-g", "daemon off;"]
     depends_on:
       backend:
         condition: service_healthy
