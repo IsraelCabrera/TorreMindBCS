@@ -4,6 +4,7 @@ services:
       context: ./frontend
     ports: []
     volumes: []
+    command: []
     depends_on:
       - backend
 
