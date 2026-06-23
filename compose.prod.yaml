@@ -12,8 +12,8 @@ services:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      start_period: 10s
+      retries: 20
+      start_period: 70s
 
   backend:
     environment:
@@ -26,8 +26,8 @@ services:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8000/health"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      start_period: 15s
+      retries: 20
+      start_period: 60s
 
   worker:
     environment:
