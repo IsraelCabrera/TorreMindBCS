@@ -37,9 +37,8 @@ services:
   ngrok:
     profiles: ["ngrok"]
     image: ngrok/ngrok:latest
+    entrypoint: ["sh", "-c"]
     command:
-      - sh
-      - -c
       - exec ngrok http caddy:80 ${NGROK_DOMAIN:+--domain $NGROK_DOMAIN}
     ports:
       - "127.0.0.1:4040:4040"
