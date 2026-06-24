@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date as date_type
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func
@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db_session, staff_or_admin
 from app.models.visit_record import VisitRecord
 from app.models.metric_log import MetricLog
+from app.models.delivery import DeliveryRecord
 
 router = APIRouter()
 
@@ -56,4 +57,48 @@ async def metrics(
     return {
         r.action: {"avg_ms": int(r.avg_ms), "min_ms": r.min_ms, "max_ms": r.max_ms, "count": r.count}
         for r in rows
+    }
+
+
+@router.get("/deliveries")
+async def delivery_report(
+    from_date: str | None = Query(None),
+    to_date: str | None = Query(None),
+    db: AsyncSession = Depends(get_db_session),
+    user: dict = Depends(staff_or_admin),
+):
+    start = datetime.fromisoformat(from_date).replace(tzinfo=timezone.utc) if from_date else None
+    end = datetime.fromisoformat(to_date).replace(tzinfo=timezone.utc) if to_date else None
+
+    query = select(DeliveryRecord)
+    if start:
+        query = query.where(DeliveryRecord.check_in_at >= start)
+    if end:
+        query = query.where(DeliveryRecord.check_in_at <= end)
+
+    result = await db.execute(query)
+    deliveries = result.scalars().all()
+
+    total_received = len(deliveries)
+    collected = [d for d in deliveries if d.status == "collected"]
+    pending = [d for d in deliveries if d.status == "pending"]
+    collected_by_owner = [d for d in collected if d.collected_by == "owner"]
+    collected_by_other = [d for d in collected if d.collected_by == "other"]
+
+    daily: dict[str, dict] = {}
+    for d in deliveries:
+        day = d.check_in_at.date().isoformat()
+        if day not in daily:
+            daily[day] = {"date": day, "received": 0, "collected": 0}
+        daily[day]["received"] += 1
+        if d.status == "collected":
+            daily[day]["collected"] += 1
+
+    return {
+        "total_received": total_received,
+        "total_collected": len(collected),
+        "pending": len(pending),
+        "collected_by_owner": len(collected_by_owner),
+        "collected_by_other": len(collected_by_other),
+        "daily": sorted(daily.values(), key=lambda x: x["date"]),
     }

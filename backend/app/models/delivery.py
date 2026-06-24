@@ -22,4 +22,6 @@ class DeliveryRecord(Base, TimestampMixin):
     photo_url: Mapped[str | None] = mapped_column(String(1024))
     check_in_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     collected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    collected_by: Mapped[str | None] = mapped_column(String(20), default=None)
+    collected_by_name: Mapped[str | None] = mapped_column(String(255), default=None)
     notification_sent: Mapped[bool] = mapped_column(default=False)

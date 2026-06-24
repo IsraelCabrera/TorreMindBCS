@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.config import settings
@@ -36,13 +37,24 @@ async def prepare_db():
 
 @pytest_asyncio.fixture
 async def db_session(prepare_db) -> AsyncGenerator[AsyncSession, None]:
-    conn = await engine.connect()
-    trans = await conn.begin()
-    session = AsyncSession(bind=conn, expire_on_commit=False)
-    yield session
-    await session.close()
-    await trans.rollback()
-    await conn.close()
+    async with engine.connect() as conn:
+        trans = await conn.begin()
+        # Create a savepoint for the API's commits
+        savepoint = await conn.begin_nested()
+        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
+            yield session
+        # Rollback the savepoint (undoes API commits) then the main transaction
+        await savepoint.rollback()
+        await trans.rollback()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_deliveries():
+    # Clean up before each test to ensure isolation
+    async with engine.connect() as conn:
+        await conn.execute(text("TRUNCATE TABLE delivery_records RESTART IDENTITY CASCADE"))
+        await conn.commit()
+    yield
 
 
 @pytest_asyncio.fixture

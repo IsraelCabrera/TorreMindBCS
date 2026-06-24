@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
-from sqlalchemy import select, desc
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, model_validator
+from sqlalchemy import select, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session, staff_or_admin
@@ -25,6 +26,19 @@ class DeliveryCreate(BaseModel):
     description: str | None = None
 
 
+class CollectRequest(BaseModel):
+    collected_by: Literal["owner", "other"]
+    collected_by_name: str | None = None
+
+    @model_validator(mode="after")
+    def validate_name_when_other(self) -> "CollectRequest":
+        if self.collected_by == "other" and (not self.collected_by_name or not self.collected_by_name.strip()):
+            raise ValueError("Name is required when collected by 'other'")
+        if self.collected_by_name:
+            self.collected_by_name = self.collected_by_name.strip()
+        return self
+
+
 class DeliveryResponse(BaseModel):
     id: str
     courier: str
@@ -35,17 +49,23 @@ class DeliveryResponse(BaseModel):
     status: str
     check_in_at: str
     collected_at: str | None
+    collected_by: str | None
+    collected_by_name: str | None
     notification_sent: bool
 
 
 @router.get("")
-async def list_active_deliveries(
+async def list_deliveries(
+    status: Literal["pending", "collected", "all"] = Query("pending"),
     db: AsyncSession = Depends(get_db_session),
     user: dict = Depends(staff_or_admin),
 ):
-    result = await db.execute(
-        select(DeliveryRecord).where(DeliveryRecord.status == "pending").order_by(desc(DeliveryRecord.check_in_at))
-    )
+    query = select(DeliveryRecord).order_by(desc(DeliveryRecord.check_in_at))
+    if status == "pending":
+        query = query.where(DeliveryRecord.status == "pending")
+    elif status == "collected":
+        query = query.where(DeliveryRecord.status == "collected")
+    result = await db.execute(query)
     deliveries = result.scalars().all()
     return [
         DeliveryResponse(
@@ -54,6 +74,8 @@ async def list_active_deliveries(
             recipient_phone=d.recipient_phone, description=d.description,
             status=d.status, check_in_at=d.check_in_at.isoformat(),
             collected_at=d.collected_at.isoformat() if d.collected_at else None,
+            collected_by=d.collected_by,
+            collected_by_name=d.collected_by_name,
             notification_sent=d.notification_sent,
         )
         for d in deliveries
@@ -86,7 +108,8 @@ async def create_delivery(
         recipient_phone=delivery.recipient_phone,
         description=delivery.description, status=delivery.status,
         check_in_at=delivery.check_in_at.isoformat(),
-        collected_at=None, notification_sent=delivery.notification_sent,
+        collected_at=None, collected_by=None, collected_by_name=None,
+        notification_sent=delivery.notification_sent,
     )
 
 
@@ -126,6 +149,7 @@ async def notify_delivery(
 @router.post("/{delivery_id}/collect")
 async def mark_collected(
     delivery_id: uuid.UUID,
+    body: CollectRequest,
     db: AsyncSession = Depends(get_db_session),
     user: dict = Depends(staff_or_admin),
 ):
@@ -135,6 +159,8 @@ async def mark_collected(
         raise HTTPException(status_code=404)
     delivery.status = "collected"
     delivery.collected_at = datetime.now(timezone.utc)
+    delivery.collected_by = body.collected_by
+    delivery.collected_by_name = body.collected_by_name
 
     phone = delivery.recipient_phone
     if not phone:
@@ -150,6 +176,8 @@ async def mark_collected(
                                          delivery.guide_number, phone, delivery.id)
 
     await log_audit(db, user["id"], "collect", "delivery", str(delivery_id),
-                    details={"recipient_name": delivery.recipient_name})
+                    details={"recipient_name": delivery.recipient_name,
+                             "collected_by": body.collected_by,
+                             "collected_by_name": body.collected_by_name})
     await db.commit()
     return {"status": "collected"}
