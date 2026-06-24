@@ -19,7 +19,6 @@ interface Tenant {
 
 const visitorTypes = [
   { value: "tenant_visitor", label: "Visitante" },
-  { value: "delivery", label: "Reparto" },
   { value: "vendor", label: "Proveedor" },
   { value: "walk_in", label: "Sin cita" },
   { value: "tenant_employee", label: "Empleado" },

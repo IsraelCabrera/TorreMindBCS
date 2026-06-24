@@ -5,6 +5,7 @@ import { Input } from "../../components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../../components/ui/dialog"
 import { api } from "../../services/api"
 import { Package, Plus, Filter } from "lucide-react"
+import { DeliveryForm } from "../../components/deliveries/DeliveryForm"
 
 interface Delivery {
   id: string
@@ -23,9 +24,8 @@ interface Delivery {
 
 export function DeliveriesPage() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
-  const [showForm, setShowForm] = useState(false)
   const [statusFilter, setStatusFilter] = useState<"pending" | "all">("pending")
-  const [form, setForm] = useState({ courier: "", recipient_name: "", guide_number: "", description: "" })
+  const [showForm, setShowForm] = useState(false)
   const [collectDialogOpen, setCollectDialogOpen] = useState(false)
   const [collectDeliveryId, setCollectDeliveryId] = useState<string | null>(null)
   const [collectBy, setCollectBy] = useState<"owner" | "other">("owner")
@@ -36,13 +36,6 @@ export function DeliveriesPage() {
   }
 
   useEffect(() => { fetchDeliveries() }, [statusFilter])
-
-  const createDelivery = async () => {
-    await api.post("/deliveries", form)
-    setForm({ courier: "", recipient_name: "", guide_number: "", description: "" })
-    setShowForm(false)
-    fetchDeliveries()
-  }
 
   const openCollectDialog = (id: string, by: "owner" | "other") => {
     setCollectDeliveryId(id)
@@ -59,6 +52,11 @@ export function DeliveriesPage() {
     })
     setCollectDialogOpen(false)
     setCollectDeliveryId(null)
+    fetchDeliveries()
+  }
+
+  const handleDeliverySuccess = () => {
+    setShowForm(false)
     fetchDeliveries()
   }
 
@@ -86,42 +84,22 @@ export function DeliveriesPage() {
           >
             <Filter className="w-4 h-4 mr-1" aria-hidden="true" /> Todos
           </Button>
-          <Button onClick={() => setShowForm(!showForm)} size="sm" aria-expanded={showForm} aria-controls="delivery-form">
+          <Button onClick={() => setShowForm(true)} size="sm">
             <Plus className="w-4 h-4 mr-1" aria-hidden="true" /> Nuevo paquete
           </Button>
         </div>
       </div>
 
       {showForm && (
-        <Card className="mb-4" id="delivery-form">
-          <CardContent className="space-y-4 p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="delivery-courier" className="sr-only">Mensajería</label>
-                <input id="delivery-courier" placeholder="Mensajería *" value={form.courier} onChange={(e) => setForm({ ...form, courier: e.target.value })}
-                  className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
-              </div>
-              <div>
-                <label htmlFor="delivery-recipient" className="sr-only">Destinatario</label>
-                <input id="delivery-recipient" placeholder="Destinatario *" value={form.recipient_name} onChange={(e) => setForm({ ...form, recipient_name: e.target.value })}
-                  className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
-              </div>
-              <div>
-                <label htmlFor="delivery-guide" className="sr-only">Número de guía</label>
-                <input id="delivery-guide" placeholder="Número de guía" value={form.guide_number} onChange={(e) => setForm({ ...form, guide_number: e.target.value })}
-                  className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
-              </div>
-              <div>
-                <label htmlFor="delivery-description" className="sr-only">Descripción</label>
-                <input id="delivery-description" placeholder="Descripción" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring" />
-              </div>
-            </div>
-            <Button onClick={createDelivery} disabled={!form.courier || !form.recipient_name} className="w-full">
-              Registrar Paquete
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="mb-4" id="delivery-form">
+          <DeliveryForm
+            title="Registrar Paquete"
+            submitLabel="Registrar"
+            showCloseButton={true}
+            onClose={() => setShowForm(false)}
+            onSuccess={handleDeliverySuccess}
+          />
+        </div>
       )}
 
       <div aria-live="polite" aria-atomic="true">

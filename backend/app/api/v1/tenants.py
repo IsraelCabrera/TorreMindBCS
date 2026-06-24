@@ -146,6 +146,19 @@ async def update_tenant(
     return {"status": "updated"}
 
 
+@router.get("/contacts")
+async def search_contacts(
+    q: str,
+    db: AsyncSession = Depends(get_db_session),
+    user: dict = Depends(staff_or_admin),
+):
+    result = await db.execute(
+        select(TenantContact).where(TenantContact.name.ilike(f"%{q}%")).limit(20)
+    )
+    contacts = result.scalars().all()
+    return [{"id": str(c.id), "name": c.name, "phone": c.phone, "email": c.email, "tenant_id": str(c.tenant_id)} for c in contacts]
+
+
 @router.get("/{tenant_id}/contacts")
 async def list_contacts(
     tenant_id: uuid.UUID,

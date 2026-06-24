@@ -102,6 +102,18 @@ async def create_delivery(
                     details={"courier": body.courier, "recipient_name": body.recipient_name})
     await db.commit()
     await db.refresh(delivery)
+
+    # Auto-notify if phone provided
+    if body.recipient_phone:
+        try:
+            await notify_delivery_recipient(db, delivery.courier, delivery.recipient_name, delivery.guide_number, body.recipient_phone, delivery.id)
+            delivery.notification_sent = True
+            await log_audit(db, user["id"], "notify", "delivery", str(delivery.id),
+                            details={"phone": body.recipient_phone, "recipient_name": delivery.recipient_name, "auto": True})
+            await db.commit()
+        except Exception:
+            pass
+
     return DeliveryResponse(
         id=str(delivery.id), courier=delivery.courier, guide_number=delivery.guide_number,
         recipient_name=delivery.recipient_name,
