@@ -186,7 +186,9 @@ export function DeliveryForm({
                   type="text"
                   value={recipientQuery}
                   onChange={(e) => {
-                    setRecipientQuery(e.target.value)
+                    const value = e.target.value
+                    setRecipientQuery(value)
+                    setRecipientName(value) // Allow custom names
                     setShowRecipientDropdown(true)
                   }}
                   onFocus={() => setShowRecipientDropdown(true)}
@@ -195,7 +197,7 @@ export function DeliveryForm({
                   role="combobox"
                   aria-expanded={showRecipientDropdown}
                   aria-haspopup="listbox"
-                  aria-autocomplete="list"
+                  aria-autocomplete="both"
                   className="w-full h-9 rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-ring"
                 />
               </div>
