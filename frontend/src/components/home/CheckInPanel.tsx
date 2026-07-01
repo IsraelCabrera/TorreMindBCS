@@ -164,7 +164,7 @@ export function CheckInPanel({ visitor, defaultType, onClose, onSuccess }: Check
                 id="panel-host"
                 type="text"
                 value={hostQuery}
-                onChange={(e) => { setHostQuery(e.target.value); setShowHostDropdown(true) }}
+                onChange={(e) => { const value = e.target.value; setHostQuery(value); setHostName(value); setShowHostDropdown(true) }}
                 onFocus={() => setShowHostDropdown(true)}
                 placeholder="Buscar..."
                 role="combobox"
