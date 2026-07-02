@@ -1,13 +1,16 @@
-from datetime import datetime, timezone, date as date_type
+from datetime import datetime, timezone, date, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_db_session, staff_or_admin
 from app.models.visit_record import VisitRecord
 from app.models.metric_log import MetricLog
 from app.models.delivery import DeliveryRecord
+from app.config import settings
 
 router = APIRouter()
 
@@ -101,4 +104,85 @@ async def delivery_report(
         "collected_by_owner": len(collected_by_owner),
         "collected_by_other": len(collected_by_other),
         "daily": sorted(daily.values(), key=lambda x: x["date"]),
+    }
+
+
+@router.get("/eod")
+async def eod_report(
+    date: str | None = Query(None),
+    db: AsyncSession = Depends(get_db_session),
+    user: dict = Depends(staff_or_admin),
+):
+    """
+    End-of-Day report for a specific date.
+    Defaults to yesterday (since EOD job runs at 23:59).
+    Computed on-demand from existing tables.
+    """
+    tz = ZoneInfo(settings.eod_timezone)
+    now = datetime.now(tz)
+    
+    if date:
+        target_date = datetime.fromisoformat(date).date()
+    else:
+        # Default to yesterday since EOD runs at 23:59
+        target_date = (now - timedelta(days=1)).date()
+
+    # Visits for the target date
+    visits_stmt = (
+        select(VisitRecord)
+        .where(func.date(VisitRecord.check_in_at) == target_date)
+        .options(selectinload(VisitRecord.visitor))
+    )
+    visits_result = await db.execute(visits_stmt)
+    visits = visits_result.scalars().all()
+
+    total_visits = len(visits)
+    manual_checkouts = [v for v in visits if v.status == "checked_out" and v.escalation_state != "auto_eod"]
+    auto_checkouts = [v for v in visits if v.status == "checked_out" and v.escalation_state == "auto_eod"]
+    still_inside = [v for v in visits if v.check_out_at is None]
+
+    # Deliveries for the target date
+    deliveries_stmt = select(DeliveryRecord).where(func.date(DeliveryRecord.check_in_at) == target_date)
+    deliveries_result = await db.execute(deliveries_stmt)
+    deliveries = deliveries_result.scalars().all()
+
+    deliveries_received = len(deliveries)
+    deliveries_pending = [d for d in deliveries if d.status == "pending"]
+    deliveries_collected = [d for d in deliveries if d.status == "collected"]
+
+    return {
+        "date": target_date.isoformat(),
+        "generated_at": now.isoformat(),
+"visits": {
+            "total": total_visits,
+            "manual_checkouts": len(manual_checkouts),
+            "auto_checkouts_eod": len(auto_checkouts),
+            "still_inside": len(still_inside),
+        },
+        "deliveries": {
+            "received": deliveries_received,
+            "pending": len(deliveries_pending),
+            "collected": len(deliveries_collected),
+        },
+        "auto_checkout_details": [
+            {
+                "visit_id": str(v.id),
+                "visitor_name": v.visitor.name if v.visitor else "Unknown",
+                "check_in_at": v.check_in_at.isoformat(),
+                "check_out_at": v.check_out_at.isoformat() if v.check_out_at else None,
+                "host_name": v.host_name,
+                "purpose": v.purpose,
+            }
+            for v in auto_checkouts
+        ],
+        "pending_deliveries": [
+            {
+                "delivery_id": str(d.id),
+                "courier": d.courier,
+                "recipient_name": d.recipient_name,
+                "check_in_at": d.check_in_at.isoformat(),
+                "guide_number": d.guide_number,
+            }
+            for d in deliveries_pending
+        ],
     }

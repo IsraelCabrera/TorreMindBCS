@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_db_session
 from app.core.rate_limiter import check_rate_limit
+from app.core.fuzzy_search import find_same_day_visit
 from app.models.tenant import Tenant
 from app.models.tenant_contact import TenantContact
 from app.models.user import User
@@ -97,6 +98,50 @@ async def self_register_public(
         )
         db.add(visitor)
         await db.flush()
+
+    # Check for same-day duplicate visit (fuzzy name match, not checked out)
+    today = date.today()
+    existing_visit = await find_same_day_visit(db, body.name, today)
+    if existing_visit:
+        # Update existing visit with new info
+        existing_visit.purpose = body.purpose or existing_visit.purpose
+        existing_visit.host_name = body.host_name or existing_visit.host_name
+        if body.tenant_id:
+            existing_visit.tenant_id = uuid.UUID(body.tenant_id)
+        # Update tenant contact if host_name matches
+        if body.host_name and body.host_name.strip():
+            contact_result = await db.execute(
+                select(TenantContact).where(
+                    TenantContact.name.ilike(f"%{body.host_name.strip()}%")
+                ).limit(1)
+            )
+            matched = contact_result.scalar_one_or_none()
+            if matched:
+                existing_visit.tenant_id = matched.tenant_id
+                existing_visit.tenant_contact_id = matched.id
+                existing_visit.host_name = matched.name
+        
+        await db.commit()
+        await db.refresh(existing_visit, ["visitor", "tenant"])
+        
+        await emit_visit_update("visit:updated", {
+            "id": str(existing_visit.id),
+            "visitor_name": visitor.name,
+            "status": existing_visit.status,
+        })
+        
+        return {
+            "success": True,
+            "duplicate": True,
+            "updated": True,
+            "visit_id": str(existing_visit.id),
+            "visitor_id": str(visitor.id),
+            "visitor_name": visitor.name,
+            "status": existing_visit.status,
+            "check_in_at": existing_visit.check_in_at.isoformat(),
+            "host_name": existing_visit.host_name,
+            "purpose": existing_visit.purpose,
+        }
 
     staff_user = (await db.execute(
         select(User).where(User.role == "lobby_staff").limit(1)

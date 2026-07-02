@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     host_timeout_seconds: int = 300
     auto_checkout_minutes: int = 480
     whatsapp_auto_accept: bool = True
+    # EOD (End of Day) configuration
+    eod_checkout_hour: int = 23
+    eod_checkout_minute: int = 59
+    eod_timezone: str = "America/Tijuana"
+    whatsapp_auto_eod_notify: bool = False
     environment: Literal["dev", "staging", "production"] = "dev"
     log_level: str = "DEBUG"
     log_dir: str = "logs"

@@ -11,7 +11,7 @@ interface Tenant {
 }
 
 interface RegisterState {
-  step: "form" | "success" | "error"
+  step: "form" | "success" | "duplicate" | "error"
   name: string
   phone: string
   company: string
@@ -20,6 +20,12 @@ interface RegisterState {
   purpose: string
   loading: boolean
   errorMsg: string
+  // Duplicate visit info
+  duplicateVisitId?: string
+  duplicateCheckInAt?: string
+  duplicateHostName?: string
+  duplicatePurpose?: string
+  duplicateStatus?: string
 }
 
 function CheckIcon() {
@@ -50,6 +56,20 @@ function BuildingIcon() {
   )
 }
 
+function InfoIcon() {
+  return (
+    <svg
+      className="w-16 h-16 text-primary mx-auto"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
 export function SelfRegistrationPage() {
   const [state, setState] = useState<RegisterState>({
     step: "form",
@@ -74,6 +94,20 @@ export function SelfRegistrationPage() {
 
   const update = useCallback(<K extends keyof RegisterState>(key: K, value: RegisterState[K]) => {
     setState((prev) => ({ ...prev, [key]: value }))
+  }, [])
+
+  const resetForm = useCallback(() => {
+    setState({
+      step: "form",
+      name: "",
+      phone: "",
+      company: "",
+      hostName: "",
+      tenantId: "",
+      purpose: "",
+      loading: false,
+      errorMsg: "",
+    })
   }, [])
 
   const handleSubmit = useCallback(async () => {
@@ -103,7 +137,19 @@ export function SelfRegistrationPage() {
         throw new Error(err.detail || "Error al registrar")
       }
 
-      update("step", "success")
+      const data = await res.json()
+
+      if (data.duplicate && data.updated) {
+        // Show duplicate/update info
+        update("step", "duplicate")
+        update("duplicateVisitId", data.visit_id)
+        update("duplicateCheckInAt", data.check_in_at)
+        update("duplicateHostName", data.host_name)
+        update("duplicatePurpose", data.purpose)
+        update("duplicateStatus", data.status)
+      } else {
+        update("step", "success")
+      }
     } catch (err) {
       update("errorMsg", err instanceof Error ? err.message : "Error al registrar")
     } finally {
@@ -119,6 +165,35 @@ export function SelfRegistrationPage() {
     },
     [handleSubmit, state.loading, state.name],
   )
+
+  const formatCheckInTime = (isoString: string) => {
+    const date = new Date(isoString)
+    return date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
+  }
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: "Pendiente",
+      approved: "Aprobada",
+      denied: "Denegada",
+      escalated: "Escalada",
+      staff_decision: "Decisión del personal",
+      checked_out: "Registrado salida",
+    }
+    return labels[status] || status
+  }
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: "bg-yellow-100 text-yellow-800",
+      approved: "bg-green-100 text-green-800",
+      denied: "bg-red-100 text-red-800",
+      escalated: "bg-orange-100 text-orange-800",
+      staff_decision: "bg-blue-100 text-blue-800",
+      checked_out: "bg-gray-100 text-gray-800",
+    }
+    return colors[status] || "bg-gray-100 text-gray-800"
+  }
 
   if (state.step === "success") {
     return (
@@ -138,19 +213,59 @@ export function SelfRegistrationPage() {
             <Button
               size="lg"
               className="mt-4 text-lg h-12 px-8"
-              onClick={() =>
-                setState({
-                  step: "form",
-                  name: "",
-                  phone: "",
-                  company: "",
-                  hostName: "",
-                  tenantId: "",
-                  purpose: "",
-                  loading: false,
-                  errorMsg: "",
-                })
-              }
+              onClick={resetForm}
+            >
+              Registrar otro visitante
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (state.step === "duplicate") {
+    return (
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <Card className="w-full max-w-lg text-center">
+          <CardContent className="space-y-6 py-12">
+            <InfoIcon />
+            <h1 className="text-3xl font-bold text-primary">
+              Visita actualizada
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              {state.name}, ya tenías una visita registrada hoy.
+            </p>
+            <div className="bg-muted/50 rounded-xl p-4 text-left space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Hora de entrada:</span>
+                <span className="font-medium">{state.duplicateCheckInAt ? formatCheckInTime(state.duplicateCheckInAt) : "—"}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Estado:</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(state.duplicateStatus || "")}`}>
+                  {state.duplicateStatus ? getStatusLabel(state.duplicateStatus) : "—"}
+                </span>
+              </div>
+              {state.duplicateHostName && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Visita a:</span>
+                  <span className="font-medium">{state.duplicateHostName}</span>
+                </div>
+              )}
+              {state.duplicatePurpose && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Motivo:</span>
+                  <span className="font-medium">{state.duplicatePurpose}</span>
+                </div>
+              )}
+            </div>
+            <p className="text-base text-muted-foreground">
+              Se han actualizado tus datos. El personal de recepción ha sido notificado.
+            </p>
+            <Button
+              size="lg"
+              className="mt-4 text-lg h-12 px-8"
+              onClick={resetForm}
             >
               Registrar otro visitante
             </Button>

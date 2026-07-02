@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_db_session, staff_or_admin, any_authenticated_user
 from app.core.audit import log_audit
+from app.core.fuzzy_search import find_same_day_visit
 from app.models.visitor import Visitor
 from app.models.visit_record import VisitRecord
 from app.models.tenant_contact import TenantContact
@@ -69,6 +70,58 @@ async def check_in(
             visitor = Visitor(name=body.visitor_name, phone=body.visitor_phone, company=body.visitor_company)
             db.add(visitor)
             await db.flush()
+
+    # Check for same-day duplicate visit (fuzzy name match, not checked out)
+    today = date.today()
+    existing_visit = await find_same_day_visit(db, body.visitor_name, today)
+    if existing_visit:
+        # Update existing visit with new info
+        existing_visit.purpose = body.purpose or existing_visit.purpose
+        existing_visit.host_name = body.host_name or existing_visit.host_name
+        existing_visit.visitor_type = body.visitor_type or existing_visit.visitor_type
+        existing_visit.work_order_ref = body.work_order_ref or existing_visit.work_order_ref
+        existing_visit.notes = body.notes or existing_visit.notes
+        if body.tenant_id:
+            existing_visit.tenant_id = uuid.UUID(body.tenant_id)
+        # Update tenant contact if host_name matches
+        if body.host_name and body.host_name.strip():
+            contact_result = await db.execute(
+                select(TenantContact).where(
+                    TenantContact.name.ilike(f"%{body.host_name.strip()}%")
+                ).limit(1)
+            )
+            matched = contact_result.scalar_one_or_none()
+            if matched:
+                existing_visit.tenant_id = matched.tenant_id
+                existing_visit.tenant_contact_id = matched.id
+                existing_visit.host_name = matched.name
+        
+        await log_audit(db, user["id"], "check_in", "visit", str(existing_visit.id),
+                        details={"visitor_name": visitor.name, "visitor_type": body.visitor_type,
+                                 "tenant_id": body.tenant_id, "host_name": body.host_name, "duplicate": True})
+        await db.commit()
+        await db.refresh(existing_visit, ["visitor", "tenant"])
+        
+        await emit_visit_update("visit:updated", {
+            "id": str(existing_visit.id),
+            "visitor_name": visitor.name,
+            "status": existing_visit.status,
+        })
+        
+        tenant_name = existing_visit.tenant.name if existing_visit.tenant else None
+        return VisitResponse(
+            id=str(existing_visit.id),
+            visitor_name=visitor.name,
+            visitor_company=visitor.company,
+            visitor_type=existing_visit.visitor_type,
+            status=existing_visit.status,
+            host_name=existing_visit.host_name,
+            purpose=existing_visit.purpose,
+            check_in_at=existing_visit.check_in_at.isoformat(),
+            check_out_at=existing_visit.check_out_at.isoformat() if existing_visit.check_out_at else None,
+            tenant_name=tenant_name,
+            escalation_state=existing_visit.escalation_state,
+        )
 
     now = datetime.now(timezone.utc)
     visit = VisitRecord(

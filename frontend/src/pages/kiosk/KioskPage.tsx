@@ -45,6 +45,14 @@ function CheckIcon() {
   )
 }
 
+function InfoIcon() {
+  return (
+    <svg className="w-20 h-20 text-primary mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  )
+}
+
 export function KioskPage() {
   const [fields, setFields] = useState<Fields>({
     name: "", phone: "", company: "", hostName: "", purpose: "",
@@ -55,7 +63,13 @@ export function KioskPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const [duplicate, setDuplicate] = useState(false)
   const [countdown, setCountdown] = useState(7)
+  // Duplicate visit info
+  const [dupCheckInAt, setDupCheckInAt] = useState("")
+  const [dupHostName, setDupHostName] = useState("")
+  const [dupPurpose, setDupPurpose] = useState("")
+  const [dupStatus, setDupStatus] = useState("")
 
   const idleRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const fieldRefs = useRef<Partial<Record<FieldKey, HTMLDivElement | null>>>({})
@@ -74,6 +88,7 @@ export function KioskPage() {
       setTenantId("")
       setError("")
       setSuccess(false)
+      setDuplicate(false)
       setActiveField("name")
     }, IDLE_TIMEOUT_MS)
   }, [])
@@ -88,20 +103,21 @@ export function KioskPage() {
     setTenantId("")
     setError("")
     setSuccess(false)
+    setDuplicate(false)
     setActiveField("name")
     resetIdleTimer()
   }, [resetIdleTimer])
 
   useEffect(() => {
-    if (!success) return
+    if (!success && !duplicate) return
     setCountdown(7)
     const timer = setInterval(() => setCountdown((p) => p - 1), 1000)
     return () => clearInterval(timer)
-  }, [success])
+  }, [success, duplicate])
 
   useEffect(() => {
-    if (success && countdown <= 0) handleReset()
-  }, [success, countdown, handleReset])
+    if ((success || duplicate) && countdown <= 0) handleReset()
+  }, [success, duplicate, countdown, handleReset])
 
   const updateField = useCallback(
     (key: FieldKey, value: string) => {
@@ -126,6 +142,35 @@ export function KioskPage() {
     setFields((prev) => ({ ...prev, [activeField]: "" }))
   }, [activeField])
 
+  const formatCheckInTime = (isoString: string) => {
+    const date = new Date(isoString)
+    return date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
+  }
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: "Pendiente",
+      approved: "Aprobada",
+      denied: "Denegada",
+      escalated: "Escalada",
+      staff_decision: "Decisión del personal",
+      checked_out: "Registrado salida",
+    }
+    return labels[status] || status
+  }
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: "bg-yellow-100 text-yellow-800",
+      approved: "bg-green-100 text-green-800",
+      denied: "bg-red-100 text-red-800",
+      escalated: "bg-orange-100 text-orange-800",
+      staff_decision: "bg-blue-100 text-blue-800",
+      checked_out: "bg-gray-100 text-gray-800",
+    }
+    return colors[status] || "bg-gray-100 text-gray-800"
+  }
+
   const handleEnter = useCallback(async () => {
     if (loading || !fields.name.trim()) return
     setError("")
@@ -149,7 +194,17 @@ export function KioskPage() {
         const err = await res.json().catch(() => ({ detail: "Error al registrar" }))
         throw new Error(err.detail || "Error al registrar")
       }
-      setSuccess(true)
+      const data = await res.json()
+      
+      if (data.duplicate && data.updated) {
+        setDuplicate(true)
+        setDupCheckInAt(data.check_in_at || "")
+        setDupHostName(data.host_name || "")
+        setDupPurpose(data.purpose || "")
+        setDupStatus(data.status || "")
+      } else {
+        setSuccess(true)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al registrar")
     } finally {
@@ -181,6 +236,58 @@ export function KioskPage() {
             {fields.name}, tu registro ha sido recibido.
           </p>
           <p className="text-base text-muted-foreground">El personal de recepción te atenderá en breve.</p>
+          <p className="text-base text-secondary font-semibold">
+            Volviendo al registro en {countdown} segundos...
+          </p>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="mt-4 w-full h-14 bg-primary text-white rounded-2xl text-xl font-bold
+              active:bg-primary/90 transition-colors touch-manipulation"
+          >
+            Registrar otro visitante ahora
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (duplicate) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+        <div className="text-center space-y-4 max-w-lg">
+          <InfoIcon />
+          <h1 className="text-3xl font-bold text-primary">Visita actualizada</h1>
+          <p className="text-xl text-muted-foreground">
+            {fields.name}, ya tenías una visita registrada hoy.
+          </p>
+          <div className="bg-muted/50 rounded-xl p-4 text-left space-y-3 max-w-lg w-full">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Hora de entrada:</span>
+              <span className="font-medium">{dupCheckInAt ? formatCheckInTime(dupCheckInAt) : "—"}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Estado:</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(dupStatus)}`}>
+                {dupStatus ? getStatusLabel(dupStatus) : "—"}
+              </span>
+            </div>
+            {dupHostName && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Visita a:</span>
+                <span className="font-medium">{dupHostName}</span>
+              </div>
+            )}
+            {dupPurpose && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Motivo:</span>
+                <span className="font-medium">{dupPurpose}</span>
+              </div>
+            )}
+          </div>
+          <p className="text-base text-muted-foreground">
+            Se han actualizado tus datos. El personal de recepción ha sido notificado.
+          </p>
           <p className="text-base text-secondary font-semibold">
             Volviendo al registro en {countdown} segundos...
           </p>
