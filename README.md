@@ -125,7 +125,8 @@ sudo apt update && sudo apt install -y \
   chromium \
   cage \
   wlr-randr \
-  seatd
+  seatd \
+  jq
 ```
 
 ### Disable the default desktop compositor (Wayfire + Waybar)
