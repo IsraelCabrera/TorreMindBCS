@@ -1,0 +1,17 @@
+[Unit]
+Description=VLMS Docker Compose services
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/vlms/VLMSControl
+ExecStart=/usr/bin/docker compose -f compose.all.yaml -f compose.prod.yaml --profile ngrok up -d
+ExecStop=/usr/bin/docker compose -f compose.all.yaml -f compose.prod.yaml --profile ngrok down
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
